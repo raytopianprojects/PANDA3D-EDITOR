@@ -13,6 +13,7 @@ from PIL import ImageEnhance
 # Initialize Panda3D app
 load_prc_file_data('', '')
 
+
 class TerrainCollider:
     def __init__(self, terrain_size, subdivision):
         self.terrain_size = terrain_size
@@ -24,7 +25,7 @@ class TerrainCollider:
 
     def create_collider_tree(self):
         size = self.terrain_size
-        step = size * 3 #// self.subdivision
+        step = size * 3  #// self.subdivision
 
         # Adjust the collision box size based on the step
         collision_box_size = step  # Use step directly as the size for the collision box
@@ -32,7 +33,8 @@ class TerrainCollider:
         for x in range(0, size, step):
             for y in range(0, size, step):
                 collider_node = CollisionNode(f"Collider_{x}_{y}")
-                collider_box = CollisionBox(Point3(x + step / 2, y + step / 2, 0), collision_box_size / 2, collision_box_size / 2, 50)
+                collider_box = CollisionBox(Point3(x + step / 2, y + step / 2, 0), collision_box_size / 2,
+                                            collision_box_size / 2, 50)
                 collider_node.add_solid(collider_box)
                 collider_node.set_from_collide_mask(BitMask32.bit(1))
                 collider_node.set_into_collide_mask(BitMask32.bit(1))
@@ -42,15 +44,13 @@ class TerrainCollider:
         # This is a placeholder for updating colliders dynamically
         print(f"Updating colliders in area: {updated_area}")
 
+
 class TerrainPainterApp(ShowBase):
     def __init__(self):
         ShowBase.__init__(self)
 
         # Load the heightmap image as a PNMImage
         self.heightmap_image = PNMImage(Filename("Heightmap.png"))
-
-        
-
 
         self.heightmap_image = PNMImage(512, 512)  # Resize to 512x512
 
@@ -65,7 +65,7 @@ class TerrainPainterApp(ShowBase):
 
         self.terrain_np = self.render.attach_new_node(self.terrain_node)
         self.terrain_np.set_scale(512, 512, 100)
-        self.terrain_np.set_pos(-512//2, -512//2, -70.0)
+        self.terrain_np.set_pos(-512 // 2, -512 // 2, -70.0)
 
         terrain_shader = Shader.load(Shader.SL_GLSL, "terrain.vert.glsl", "terrain.frag.glsl")
         self.terrain_np.set_shader(terrain_shader)
@@ -97,19 +97,20 @@ class TerrainPainterApp(ShowBase):
 
         self.terrain_collider = TerrainCollider(1024, 100)
 
-        self.brush_selection = "b0.png" #current brush Path
+        self.brush_selection = "b0.png"  #current brush Path
 
-        self.intensity = 0.2 # out of a 100 2/100
+        self.intensity = 0.2  # out of a 100 2/100
 
         self.max_height = 1
-    
+
     def start_holding(self):
         self.task_mgr.add(self.on_mouse_click, "on_mouse_click")
-        self.height = 0.0 
+        self.height = 0.0
         self.holding = True
+
     def stop_holding(self):
         self.holding = False
-    
+
     def adjust_speed_of_brush(self, brush_image, speed_factor):
         # Create a new PNMImage with the same size and data as the original
         new_brush_image = PNMImage(brush_image.get_x_size(), brush_image.get_y_size())
@@ -135,6 +136,7 @@ class TerrainPainterApp(ShowBase):
                 new_brush_image.set_xel(x, y, r, g, b)
 
         return new_brush_image
+
     def on_mouse_click(self, Task):
         if not self.mouseWatcherNode.has_mouse():
             print("Mouse not detected!")
@@ -155,21 +157,14 @@ class TerrainPainterApp(ShowBase):
         else:
             print("No collision detected.")
 
-
         if not self.height >= self.max_height:
             self.height += 0.05
-    
-
-
 
         if self.holding:
             return Task.cont
         else:
             return None
 
-    
-    
-    
     def adjust_brightness_pillow(self, brush_image_path, brightness_factor):
         # Open the brush image using Pillow
         brush_image = Image.open(brush_image_path)
@@ -201,7 +196,6 @@ class TerrainPainterApp(ShowBase):
             brush_width = brush_image.get_x_size()
             brush_height = brush_image.get_y_size()
 
-
             self.adjust_speed_of_brush(brush_image, self.intensity)
 
             # Calculate the top-left corner to center the brush
@@ -228,8 +222,6 @@ class TerrainPainterApp(ShowBase):
             self.terrain_collider.update_colliders(updated_area=(terrain_x, terrain_y))
         else:
             print("Click outside terrain bounds.")
-
-        
 
 
 # Run the application
