@@ -4,9 +4,12 @@ from direct.showbase.ShowBase import messenger
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from QPanda3D.Panda3DWorld import Panda3DWorld
-from QPanda3D.QPanda3DWidget import QPanda3DWidget
 from direct.stdpy.file import open, isdir, isfile
+from copy import copy
+import sys
+import io
+from contextlib import redirect_stdout
+
 
 names = {"Vertex": ".vert", "Fragment": '.frag', "Geometry": ".geom", "Tess Hull": ".hull", "Tess Domain": ".dom"}
 
@@ -16,10 +19,26 @@ class ShaderEditor(QWidget):
         super().__init__()
         self.name = None
         self.shaders: dict[str, QPlainTextEdit] = {}
+        self.last_shaders = None
+
         self.h = QHBoxLayout()
         self.setLayout(self.h)
+
         self.tb = QTabWidget(self)
-        self.h.addWidget(self.tb)
+        self.viewport_splitter = QSplitter(Qt.Vertical)
+
+        self.h.addWidget(self.viewport_splitter)
+
+        self.error_scroll = QScrollArea(self)
+        self.error_scroll.setWidgetResizable(True)
+
+        self.error_box = QLabel("")
+        self.error_box.setWordWrap(True)
+
+        self.error_scroll.setWidget(self.error_box)
+
+        self.viewport_splitter.addWidget(self.tb)
+        self.viewport_splitter.addWidget(self.error_scroll)
 
         for x, y in {"Vertex": """#version 150
 
@@ -72,9 +91,10 @@ void main() {
         for c in render.get_children():
             print(c, type(c.node()))
             if c.node() != self.node.node() and type(c.node()) not in (AmbientLight, DirectionalLight, PointLight,
-                                                                       Spotlight, Camera) and c.name not in ("threeaxisgrid"
-                                                                                                   "-parentnode",
-                                                                                                       "camera"):
+                                                                       Spotlight, Camera) and c.name not in (
+            "threeaxisgrid"
+            "-parentnode",
+            "camera"):
                 c.hide()
 
     def show_nodes(self):
@@ -127,17 +147,21 @@ void main() {
         self.tb.addTab(t, name)
 
     def apply_shaders(self):
-        try:
-            shaders = {"vertex": self.shaders["Vertex"].toPlainText(),
-                       "fragment": self.shaders["Fragment"].toPlainText(),
-                       "geometry": self.shaders["Geometry"].toPlainText(),
-                       "tess_control": self.shaders["Tess Hull"].toPlainText(),
-                       "tess_evaluation": self.shaders["Tess Domain"].toPlainText()}
-            kwargs = {}
-            for key, value in shaders.items():
-                if value != "":
-                    kwargs[key] = value
-            self.node.set_shader(Shader.make(Shader.SL_GLSL, **kwargs))
-            print("Shader Successful")
-        except:
-            pass
+        f = io.StringIO()
+        with redirect_stdout(f):
+            try:
+                shaders = {"vertex": self.shaders["Vertex"].toPlainText(),
+                           "fragment": self.shaders["Fragment"].toPlainText(),
+                           "geometry": self.shaders["Geometry"].toPlainText(),
+                           "tess_control": self.shaders["Tess Hull"].toPlainText(),
+                           "tess_evaluation": self.shaders["Tess Domain"].toPlainText()}
+                kwargs = {}
+                for key, value in shaders.items():
+                    if value != "":
+                        kwargs[key] = value
+                self.node.set_shader(Shader.make(Shader.SL_GLSL, **kwargs))
+                self.last_shaders = copy(kwargs)
+            except:
+                if self.last_shaders:
+                    self.node.set_shader(Shader.make(Shader.SL_GLSL, **self.last_shaders))
+        self.error_box.setText(f.getvalue() + self.error_box.text())

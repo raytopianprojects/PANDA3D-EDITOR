@@ -11,6 +11,8 @@ from direct.interval.LerpInterval import LerpHprInterval
 from direct.interval.IntervalGlobal import *
 from direct.gui.OnscreenImage import OnscreenImage
 from direct.showbase.DirectObject import DirectObject
+from direct.task.Task import Task
+import traceback
 from camera import FlyingCamera
 from node import NodeEditor
 from shader_editor import ShaderEditor
@@ -85,9 +87,8 @@ def populate_hierarchy(hierarchy_widget, node, parent_item=None):
 
 selected_node = None
 
+
 class properties:
-    def __init__():
-        pass
     def update_node_property(self, coord):
         print(f"update_node_property called with coord: {coord}")
         if coord not in input_boxes:
@@ -114,17 +115,43 @@ class properties:
             scale[coord[1]] = value
             selected_node.setScale(*scale)
 
+
+async def update_properties_tick(task):
+    await Task.pause(0.1)
+    try:
+        if selected_node:
+            for index in range(3):
+                if index == 0:
+                    x, y, z = selected_node.get_pos()
+                    input_boxes[index, 0].setText(str(x)[:8])
+                    input_boxes[index, 1].setText(str(y)[:8])
+                    input_boxes[index, 2].setText(str(z)[:8])
+                elif index == 1:
+                    h, p, r = selected_node.get_hpr()
+                    input_boxes[index, 0].setText(str(h)[:8])
+                    input_boxes[index, 1].setText(str(p)[:8])
+                    input_boxes[index, 2].setText(str(r)[:8])
+                else:
+                    sx, sy, sz = selected_node.get_scale()
+                    input_boxes[index, 0].setText(str(sx)[:8])
+                    input_boxes[index, 1].setText(str(sy)[:8])
+                    input_boxes[index, 2].setText(str(sz)[:8])
+    except Exception as e:
+        print(e, "ERROR", traceback.format_exc())
+    return task.cont
+
+
 def on_item_clicked(item, column):
     global selected_node
     node = item.data(0, Qt.UserRole)  # Retrieve the NodePath stored in the item
-    
+
     if node:
         selected_node = node
         # Update the input boxes with the node's properties
         input_boxes[(0, 0)].setText(str(node.getX()))
         input_boxes[(0, 1)].setText(str(node.getY()))
         input_boxes[(0, 2)].setText(str(node.getZ()))
-                
+
         input_boxes[(1, 0)].setText(str(node.getH()))
         input_boxes[(1, 1)].setText(str(node.getP()))
         input_boxes[(1, 2)].setText(str(node.getR()))
@@ -133,15 +160,19 @@ def on_item_clicked(item, column):
         input_boxes[(2, 1)].setText(str(node.getScale().y))
         input_boxes[(2, 2)].setText(str(node.getScale().z))
 
+
 def new_tab(index):
     if index == 2:
+        pandawidget_2.resizeEvent(pandawidget_2)
         shader_editor.hide_nodes()
     else:
+        pandaWidget.resizeEvent(pandaWidget)
         shader_editor.show_nodes()
 
 
 if __name__ == "__main__":
     world = PandaTest()
+    world.add_task(update_properties_tick)
     app = QApplication(sys.argv)
     appw = QMainWindow()
     appw.setGeometry(50, 50, 1024, 768)
@@ -201,7 +232,7 @@ if __name__ == "__main__":
     grid_widget = QWidget()
     # Create a grid layout for the input boxes (3x3)
     grid_layout = QGridLayout(grid_widget)
-    
+
     # Create 3x3 QLineEdit input boxes
     input_boxes = {}
     for i in range(3):
@@ -216,9 +247,6 @@ if __name__ == "__main__":
             input_boxes[(i, j)] = input_box
             grid_layout.addWidget(label, i * 2, j)  # Add label in a separate row
             grid_layout.addWidget(input_box, i * 2 + 1, j)  # Add input box below the label
-
-
-
 
     # Add the grid widget to the main layout
     right_panel.layout().addWidget(grid_widget)
@@ -236,7 +264,8 @@ if __name__ == "__main__":
     viewport_splitter = QSplitter(Qt.Horizontal)
     viewport_layout.addWidget(viewport_splitter)
 
-    viewport_splitter.addWidget(QPanda3DWidget(world))
+    pandawidget_2 = QPanda3DWidget(world)
+    viewport_splitter.addWidget(pandawidget_2)
 
     shader_editor = ShaderEditor()
     viewport_splitter.addWidget(shader_editor)
@@ -256,8 +285,6 @@ if __name__ == "__main__":
     for coord, box in input_boxes.items():
         # Use a default argument to capture the value of `coord` correctly
         box.textChanged.connect(lambda box=box, coord=coord: prop.update_node_property(box, coord))
-
-    
 
     # Show the application window
     appw.show()
