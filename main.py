@@ -1,3 +1,4 @@
+
 from QPanda3D.Panda3DWorld import Panda3DWorld
 from QPanda3D.QPanda3DWidget import QPanda3DWidget
 from QPanda3D.Helpers.Env_Grid_Maker import *
@@ -16,20 +17,6 @@ import traceback
 from camera import FlyingCamera
 from node import NodeEditor
 from shader_editor import ShaderEditor
-
-import terrainEditor
-
-from panda3d.core import (
-    ShaderTerrainMesh, Shader, MouseWatcher, Point3,
-    NodePath, CollisionRay, CollisionNode, CollisionHandlerQueue, CollisionTraverser,
-    PNMImage, Filename, LVecBase4f, PNMPainter, PNMBrush, SamplerState, CollisionBox, BitMask32,
-    Geom, GeomNode, GeomVertexFormat, GeomVertexData, GeomVertexWriter, GeomLines, Texture, LColorf
-)
-from direct.showbase.ShowBase import ShowBase
-from panda3d.core import load_prc_file_data
-
-from PIL import Image
-from PIL import ImageEnhance
 
 
 class PandaTest(Panda3DWorld):
@@ -82,9 +69,6 @@ class PandaTest(Panda3DWorld):
         self.roll_left = self.panda.hprInterval(1.0, Point3(0, 0, 180))
         self.roll_right = self.panda.hprInterval(1.0, Point3(0, 0, 0))
         self.roll_seq = Sequence(Parallel(self.jump_up2, self.roll_left), Parallel(self.jump_down2, self.roll_right))
-
-    def make_terrain(self):
-        self.terrain_generate = terrainEditor.TerrainPainterApp(world)
 
     def jump(self):
         self.jump_seq.start()
@@ -192,23 +176,11 @@ def new_project():
 
 def save_file():
     print("Save file triggered")
-
 def load_project():
     print("Custom action triggered")
-
 def close(): #TODO when saving is introduced make a window pop up with save option(save don't save and don't exist(canel))
     """closing the editor"""
     exit()
-#-------------------
-#Terrain Generation
-terrain_generate = None
-def gen_terrain():
-    global world
-    global terrain_generate 
-    world.make_terrain()
-
-
-#-------------------
 
 if __name__ == "__main__":
     world = PandaTest()
@@ -227,46 +199,33 @@ if __name__ == "__main__":
     appw.addToolBar(toolbar)
     
     # Create the menu
-    edit_tool_type_menu = QMenu("Edit", appw)
-    terrain_3d = QMenu("Terrain 3D", appw)
+    edit_tool_type_menu = QMenu("Edit Tool Type", appw)
     
-    # Create an action for the Edit menu
+    # Create an action for the menu
     action = QAction("new project", appw)
-    action.triggered.connect(new_project)
+    action.triggered.connect(new_project)  # Replace with your function
     edit_tool_type_menu.addAction(action)
     
     action1 = QAction("save project", appw)
-    action1.triggered.connect(save_file)
+    action1.triggered.connect(save_file)  # Replace with your function
     edit_tool_type_menu.addAction(action1)
     
     action2 = QAction("load project", appw)
-    action2.triggered.connect(load_project)
+    action2.triggered.connect(load_project)  # Replace with your function
     edit_tool_type_menu.addAction(action2)
 
     action3 = QAction("exit", appw)
-    action3.triggered.connect(exit)
+    action3.triggered.connect(exit)  # Replace with your function
     edit_tool_type_menu.addAction(action3)
-
-    #--------------------------
-    #actions for Terrain3D menu
-    action = QAction("Generate Terrain", appw)
-    action.triggered.connect(gen_terrain)
-    terrain_3d.addAction(action)
-    #--------------------------
+    
 
     # Create a tool button for the menu
     tool_button = QToolButton()
-    tool_button.setText("Edit")
+    tool_button.setText("Edit Tool Type")
     tool_button.setMenu(edit_tool_type_menu)
     tool_button.setPopupMode(QToolButton.InstantPopup)
     toolbar.addWidget(tool_button)
 
-    # Create a tool button for the menu
-    tool_button1 = QToolButton()
-    tool_button1.setText("Terrain 3D")
-    tool_button1.setMenu(terrain_3d)
-    tool_button1.setPopupMode(QToolButton.InstantPopup)
-    toolbar.addWidget(tool_button1)
 
     # Tabs
     tab_widget = QTabWidget()
