@@ -14,6 +14,7 @@ from direct.showbase.DirectObject import DirectObject
 from camera import FlyingCamera
 from node import NodeEditor
 from shader_editor import ShaderEditor
+import terrainEditor
 
 
 class PandaTest(Panda3DWorld):
@@ -72,6 +73,10 @@ class PandaTest(Panda3DWorld):
 
     def roll(self):
         self.roll_seq.start()
+
+    def make_terrain(self):
+        self.terrain_generate = terrainEditor.TerrainPainterApp(world)
+
 
 
 def populate_hierarchy(hierarchy_widget, node, parent_item=None):
@@ -140,6 +145,30 @@ def new_tab(index):
         shader_editor.show_nodes()
 
 
+#Toolbar functions
+def new_project():
+    print("Open file triggered")
+
+def save_file():
+    print("Save file triggered")
+
+def load_project():
+    print("Custom action triggered")
+
+def close(): #TODO when saving is introduced make a window pop up with save option(save don't save and don't exist(canel))
+    """closing the editor"""
+    exit()
+#-------------------
+#Terrain Generation
+terrain_generate = None
+def gen_terrain():
+    global world
+    global terrain_generate 
+    world.make_terrain()
+
+
+#-------------------
+
 if __name__ == "__main__":
     world = PandaTest()
     app = QApplication(sys.argv)
@@ -149,6 +178,52 @@ if __name__ == "__main__":
     # Main Widget
     main_widget = QWidget()
     main_layout = QVBoxLayout(main_widget)  # Use vertical layout for tabs
+    
+    # Create the toolbar
+    toolbar = QToolBar("Main Toolbar")
+    appw.addToolBar(toolbar)
+    
+    # Create the menu
+    edit_tool_type_menu = QMenu("Edit", appw)
+    terrain_3d = QMenu("Terrain 3D", appw)
+    
+    # Create an action for the Edit menu
+    action = QAction("new project", appw)
+    action.triggered.connect(new_project)
+    edit_tool_type_menu.addAction(action)
+    
+    action1 = QAction("save project", appw)
+    action1.triggered.connect(save_file)
+    edit_tool_type_menu.addAction(action1)
+    
+    action2 = QAction("load project", appw)
+    action2.triggered.connect(load_project)
+    edit_tool_type_menu.addAction(action2)
+
+    action3 = QAction("exit", appw)
+    action3.triggered.connect(exit)
+    edit_tool_type_menu.addAction(action3)
+
+    #--------------------------
+    #actions for Terrain3D menu
+    action = QAction("Generate Terrain", appw)
+    action.triggered.connect(gen_terrain)
+    terrain_3d.addAction(action)
+    #--------------------------
+
+    # Create a tool button for the menu
+    tool_button = QToolButton()
+    tool_button.setText("Edit")
+    tool_button.setMenu(edit_tool_type_menu)
+    tool_button.setPopupMode(QToolButton.InstantPopup)
+    toolbar.addWidget(tool_button)
+
+    # Create a tool button for the menu
+    tool_button1 = QToolButton()
+    tool_button1.setText("Terrain 3D")
+    tool_button1.setMenu(terrain_3d)
+    tool_button1.setPopupMode(QToolButton.InstantPopup)
+    toolbar.addWidget(tool_button1)
 
     # Tabs
     tab_widget = QTabWidget()
