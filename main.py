@@ -1,13 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Module : buttons_example
-Author : Saifeddine ALOUI
-Description :
-    This is an example of how we can put together a simple Panda3D Word 
-    wrapped inside a QMainWindow and add QT pushbuttons that interact with the world.
-    This uses the Env_Grid_Maker helper to make a 3D grid in the scene 
-"""
-
 from QPanda3D.Panda3DWorld import Panda3DWorld
 from QPanda3D.QPanda3DWidget import QPanda3DWidget
 from QPanda3D.Helpers.Env_Grid_Maker import *
@@ -21,7 +11,11 @@ from direct.interval.LerpInterval import LerpHprInterval
 from direct.interval.IntervalGlobal import *
 from direct.gui.OnscreenImage import OnscreenImage
 from direct.showbase.DirectObject import DirectObject
+from direct.task.Task import Task
+import traceback
 from camera import FlyingCamera
+from node import NodeEditor
+from shader_editor import ShaderEditor
 
 import terrainEditor
 
@@ -110,9 +104,8 @@ def populate_hierarchy(hierarchy_widget, node, parent_item=None):
 
 selected_node = None
 
+
 class properties:
-    def __init__():
-        pass
     def update_node_property(self, coord):
         print(f"update_node_property called with coord: {coord}")
         if coord not in input_boxes:
@@ -139,17 +132,43 @@ class properties:
             scale[coord[1]] = value
             selected_node.setScale(*scale)
 
+
+async def update_properties_tick(task):
+    await Task.pause(0.1)
+    try:
+        if selected_node:
+            for index in range(3):
+                if index == 0:
+                    x, y, z = selected_node.get_pos()
+                    input_boxes[index, 0].setText(str(x)[:8])
+                    input_boxes[index, 1].setText(str(y)[:8])
+                    input_boxes[index, 2].setText(str(z)[:8])
+                elif index == 1:
+                    h, p, r = selected_node.get_hpr()
+                    input_boxes[index, 0].setText(str(h)[:8])
+                    input_boxes[index, 1].setText(str(p)[:8])
+                    input_boxes[index, 2].setText(str(r)[:8])
+                else:
+                    sx, sy, sz = selected_node.get_scale()
+                    input_boxes[index, 0].setText(str(sx)[:8])
+                    input_boxes[index, 1].setText(str(sy)[:8])
+                    input_boxes[index, 2].setText(str(sz)[:8])
+    except Exception as e:
+        print(e, "ERROR", traceback.format_exc())
+    return task.cont
+
+
 def on_item_clicked(item, column):
     global selected_node
     node = item.data(0, Qt.UserRole)  # Retrieve the NodePath stored in the item
-    
+
     if node:
         selected_node = node
         # Update the input boxes with the node's properties
         input_boxes[(0, 0)].setText(str(node.getX()))
         input_boxes[(0, 1)].setText(str(node.getY()))
         input_boxes[(0, 2)].setText(str(node.getZ()))
-                
+
         input_boxes[(1, 0)].setText(str(node.getH()))
         input_boxes[(1, 1)].setText(str(node.getP()))
         input_boxes[(1, 2)].setText(str(node.getR()))
@@ -158,120 +177,14 @@ def on_item_clicked(item, column):
         input_boxes[(2, 1)].setText(str(node.getScale().y))
         input_boxes[(2, 2)].setText(str(node.getScale().z))
 
-class NodeEditor(QGraphicsView):
-    def __init__(self, parent=None):
-        super(NodeEditor, self).__init__(parent)
-        self.setScene(QGraphicsScene(self))
-        self.setRenderHint(QPainter.Antialiasing)
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.customContextMenuRequested.connect(self.show_context_menu)
 
-        self.temp_line = None  # Temporary line for connections
-        self.start_connector = None  # Starting connector of the connection
-        self.connections = []  # Store the connections between nodes
-
-    def show_context_menu(self, position):
-        context_menu = QMenu()
-
-        add_node_action = context_menu.addAction("Add Node")
-        add_node_action.triggered.connect(lambda: self.add_node(position))
-
-        add_add_node_action = context_menu.addAction("Add 'Add' Node")
-        add_add_node_action.triggered.connect(lambda: self.add_specific_node(position, "Add"))
-
-        add_action_node_action = context_menu.addAction("Add 'Action' Node")
-        add_action_node_action.triggered.connect(lambda: self.add_specific_node(position, "Action"))
-
-        context_menu.exec_(self.mapToGlobal(position))
-
-    def add_node(self, position):
-        self.add_specific_node(position, "Default")
-
-    def add_specific_node(self, position, node_type):
-        scene_position = self.mapToScene(position)
-        node = QGraphicsRectItem(0, 0, 120, 60)
-        node.setPos(scene_position)
-        node.setBrush(QBrush(Qt.lightGray))
-        node.setFlags(QGraphicsItem.ItemIsMovable | QGraphicsItem.ItemIsSelectable)
-        self.scene().addItem(node)
-
-        text = QGraphicsTextItem(node_type, node)
-        text.setDefaultTextColor(Qt.black)
-        text.setPos(10, 10)
-
-        # Add input connector
-        input_connector = QGraphicsEllipseItem(-10, 20, 10, 10, node)
-        input_connector.setBrush(QBrush(Qt.darkGray))
-        input_connector.setPen(QPen(Qt.NoPen))
-        input_connector.setData(0, "input")
-        input_connector.setFlag(QGraphicsItem.ItemIsSelectable)
-
-        # Add output connector
-        output_connector = QGraphicsEllipseItem(120, 20, 10, 10, node)
-        output_connector.setBrush(QBrush(Qt.darkGray))
-        output_connector.setPen(QPen(Qt.NoPen))
-        output_connector.setData(0, "output")
-        output_connector.setFlag(QGraphicsItem.ItemIsSelectable)
-
-    def mousePressEvent(self, event):
-        item = self.itemAt(event.pos())
-        if isinstance(item, QGraphicsEllipseItem):  # Connector clicked
-            connector_type = item.data(0)
-            if connector_type == "output":  # Start a connection
-                self.start_connector = item
-                scene_pos = item.sceneBoundingRect().center()
-                self.temp_line = QGraphicsLineItem(QLineF(scene_pos, scene_pos))
-                self.temp_line.setPen(QPen(Qt.red, 2))
-                self.scene().addItem(self.temp_line)
-        super(NodeEditor, self).mousePressEvent(event)
-
-    def mouseMoveEvent(self, event):
-        if self.temp_line:
-            line = self.temp_line.line()
-            line.setP2(self.mapToScene(event.pos()))
-            self.temp_line.setLine(line)
-        super(NodeEditor, self).mouseMoveEvent(event)
-
-    def mouseReleaseEvent(self, event):
-        if self.temp_line:
-            end_item = self.itemAt(event.pos())
-            if isinstance(end_item, QGraphicsEllipseItem):
-                end_type = end_item.data(0)
-                if self.start_connector and end_type == "input" and self.start_connector.data(0) == "output":
-                    # Complete the connection
-                    start_pos = self.start_connector.sceneBoundingRect().center()
-                    end_pos = end_item.sceneBoundingRect().center()
-
-                    # Check if the connection already exists
-                    if not self.is_connection_exists(self.start_connector, end_item):
-                        connection_line = QGraphicsLineItem(QLineF(start_pos, end_pos))
-                        connection_line.setPen(QPen(Qt.blue, 2))
-                        self.scene().addItem(connection_line)
-                        self.connections.append((self.start_connector, end_item, connection_line))
-                    else:
-                        print("Connection already exists.")
-                else:
-                    print("Invalid connection attempt.")
-            else:
-                print("Connection failed: Not a valid connector.")
-
-            # Clean up temporary line
-            self.scene().removeItem(self.temp_line)
-            self.temp_line = None
-            self.start_connector = None
-        super(NodeEditor, self).mouseReleaseEvent(event)
-
-    def is_connection_exists(self, start_connector, end_connector):
-        """Check if the connection already exists between the start and end connectors."""
-        for conn in self.connections:
-            if conn[0] == start_connector and conn[1] == end_connector:
-                return True
-        return False
-
-    def delete_connection(self, connection_line):
-        """Remove a connection."""
-        self.scene().removeItem(connection_line)
-        self.connections = [conn for conn in self.connections if conn[2] != connection_line]
+def new_tab(index):
+    if index == 2:
+        pandawidget_2.resizeEvent(pandawidget_2)
+        shader_editor.hide_nodes()
+    else:
+        pandaWidget.resizeEvent(pandaWidget)
+        shader_editor.show_nodes()
 
 #Toolbar functions
 def new_project():
@@ -299,6 +212,7 @@ def gen_terrain():
 
 if __name__ == "__main__":
     world = PandaTest()
+    world.add_task(update_properties_tick)
     app = QApplication(sys.argv)
     appw = QMainWindow()
     appw.setGeometry(50, 50, 1024, 768)
@@ -407,7 +321,7 @@ if __name__ == "__main__":
     grid_widget = QWidget()
     # Create a grid layout for the input boxes (3x3)
     grid_layout = QGridLayout(grid_widget)
-    
+
     # Create 3x3 QLineEdit input boxes
     input_boxes = {}
     for i in range(3):
@@ -423,9 +337,6 @@ if __name__ == "__main__":
             grid_layout.addWidget(label, i * 2, j)  # Add label in a separate row
             grid_layout.addWidget(input_box, i * 2 + 1, j)  # Add input box below the label
 
-
-
-
     # Add the grid widget to the main layout
     right_panel.layout().addWidget(grid_widget)
 
@@ -433,6 +344,23 @@ if __name__ == "__main__":
 
     # Add the 3D Viewport Tab to Tabs
     tab_widget.addTab(viewport_tab, "3D Viewport")
+
+    # Add Shader Editor
+    viewport_tab = QWidget()
+    viewport_layout = QVBoxLayout(viewport_tab)
+
+    # Splitter for left panel, viewport, and right panel
+    viewport_splitter = QSplitter(Qt.Horizontal)
+    viewport_layout.addWidget(viewport_splitter)
+
+    pandawidget_2 = QPanda3DWidget(world)
+    viewport_splitter.addWidget(pandawidget_2)
+
+    shader_editor = ShaderEditor()
+    viewport_splitter.addWidget(shader_editor)
+
+    tab_widget.addTab(viewport_tab, "Shader Editor")
+    tab_widget.currentChanged.connect(new_tab)
 
     # Set the main widget as the central widget
     appw.setCentralWidget(main_widget)
@@ -446,8 +374,6 @@ if __name__ == "__main__":
     for coord, box in input_boxes.items():
         # Use a default argument to capture the value of `coord` correctly
         box.textChanged.connect(lambda box=box, coord=coord: prop.update_node_property(box, coord))
-
-    
 
     # Show the application window
     appw.show()
