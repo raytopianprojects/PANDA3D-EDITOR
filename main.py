@@ -169,6 +169,17 @@ def new_tab(index):
         pandaWidget.resizeEvent(pandaWidget)
         shader_editor.show_nodes()
 
+#Toolbar functions
+def new_project():
+    print("Open file triggered")
+
+def save_file():
+    print("Save file triggered")
+def load_project():
+    print("Custom action triggered")
+def close(): #TODO when saving is introduced make a window pop up with save option(save don't save and don't exist(canel))
+    """closing the editor"""
+    exit()
 
 if __name__ == "__main__":
     world = PandaTest()
@@ -181,9 +192,45 @@ if __name__ == "__main__":
     main_widget = QWidget()
     main_layout = QVBoxLayout(main_widget)  # Use vertical layout for tabs
 
+    
+    # Create the toolbar
+    toolbar = QToolBar("Main Toolbar")
+    appw.addToolBar(toolbar)
+    
+    # Create the menu
+    edit_tool_type_menu = QMenu("Edit Tool Type", appw)
+    
+    # Create an action for the menu
+    action = QAction("new project", appw)
+    action.triggered.connect(new_project)  # Replace with your function
+    edit_tool_type_menu.addAction(action)
+    
+    action1 = QAction("save project", appw)
+    action1.triggered.connect(save_file)  # Replace with your function
+    edit_tool_type_menu.addAction(action1)
+    
+    action2 = QAction("load project", appw)
+    action2.triggered.connect(load_project)  # Replace with your function
+    edit_tool_type_menu.addAction(action2)
+
+    action3 = QAction("exit", appw)
+    action3.triggered.connect(exit)  # Replace with your function
+    edit_tool_type_menu.addAction(action3)
+    
+
+    # Create a tool button for the menu
+    tool_button = QToolButton()
+    tool_button.setText("Edit Tool Type")
+    tool_button.setMenu(edit_tool_type_menu)
+    tool_button.setPopupMode(QToolButton.InstantPopup)
+    toolbar.addWidget(tool_button)
+
+
     # Tabs
     tab_widget = QTabWidget()
     main_layout.addWidget(tab_widget)
+
+    
 
     # Node Editor Tab
     node_editor_tab = QWidget()
