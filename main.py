@@ -20,13 +20,93 @@ from panda3d.core import *
 from direct.interval.LerpInterval import LerpHprInterval
 from direct.interval.IntervalGlobal import *
 from direct.gui.OnscreenImage import OnscreenImage
-from camera import FlyingCamera
+from direct.showbase.DirectObject import DirectObject
+
+
+class CameraControls(DirectObject):
+    def __init__(self, world: Panda3DWorld):
+        # Todo: Page up and down, mouse wheel for speed, smooth camera rotation
+        super().__init__()
+        self.world = world
+        self.cam = world.cam
+        self.mx, self.my, self.x, self.y = 0, 0, 0, 0
+        self.move_speed = 1
+
+        # Enable controls
+        self.keys = ("w", "s", "q", "e", "a", "d", "mouse2",  "arrow_left", "arrow_up", "arrow_down", "arrow_right",
+                     "page_up", "page_down")
+        self.input = {}
+        for i in self.keys:
+            self.input[i] = False
+            self.accept(i, self.update, extraArgs=[i, True])
+            self.accept(i + "-up", self.update, extraArgs=[i, False])
+
+        # Mouse position
+        self.accept("mouse-move", self.mouse_move)
+
+        # Camera speed
+        #self.accept("wheel_up", self.mouse_up)
+        #self.accept("wheel_down", self.mouse_up)
+
+        # Enable movement
+        self.move_task = self.add_task(self.move)
+
+    def mouse_up(self, *args):
+        print("uo", args)
+
+    def mouse_move(self, evt: dict):
+        self.x, self.y = evt['x'], evt['y']
+
+    def update(self, key, value, *args):
+        global input_boxes
+        self.input[key] = value
+        
+        # Reseat mouse position
+        if args and value:
+            args = args[0]
+            self.x, self.y = args['x'], args['y']
+            self.mx, self.my = self.x, self.y
+        
+    
+
+        
+    def move(self, task):
+        # Mouse Rotation
+        if self.world.mouseWatcherNode.hasMouse():
+            if self.input["mouse2"]:
+                dx, dy = self.mx - self.x, self.my - self.y
+
+                self.cam.set_p(self.cam, dy * 0.25 * self.move_speed)
+                self.cam.set_h(self.cam, dx * 0.25 * self.move_speed)
+
+                self.mx, self.my = self.x, self.y
+
+        # Keyboad Movement
+        if self.input["q"] or self.input["page_up"]:
+            self.cam.set_z(self.cam, 1 * self.move_speed)
+
+        if self.input["e"] or self.input["page_down"]:
+            self.cam.set_z(self.cam, -1 * self.move_speed)
+
+        if self.input["w"] or self.input["arrow_up"]:
+            self.cam.set_y(self.cam, 1 * self.move_speed)
+
+        if self.input["s"] or self.input["arrow_down"]:
+            self.cam.set_y(self.cam, -1 * self.move_speed)
+
+        if self.input["d"] or self.input["arrow_right"]:
+            self.cam.set_x(self.cam, 1 * self.move_speed)
+
+        if self.input["a"] or self.input["arrow_left"]:
+            self.cam.set_x(self.cam, -1 * self.move_speed)
+
+        return task.cont
 
 
 class PandaTest(Panda3DWorld):
     def __init__(self, width=1024, height=768):
         Panda3DWorld.__init__(self, width=width, height=height)
-        self.camera_controls = FlyingCamera(self)
+        self.camera_controls = CameraControls(self)
         self.cam.setPos(0, -58, 30)
         self.cam.setHpr(0, -30, 0)
         self.win.setClearColorActive(True)
@@ -92,13 +172,53 @@ def populate_hierarchy(hierarchy_widget, node, parent_item=None):
 
 selected_node = None
 
+class properties:
+    def __init__():
+        pass
+    def update_node_property(self, coord):
+        print(f"update_node_property called with coord: {coord}")
+        if coord not in input_boxes:
+            print(f"Error: {coord} not found in input_boxes. Current keys: {list(input_boxes.keys())}")
+            return
+        value = float(input_boxes[coord].text())
+        if not selected_node:
+            return
+        try:
+            value = float(input_boxes[coord].text())
+        except ValueError:
+            return  # Ignore invalid inputs
+
+        if coord[0] == 0:  # Translation
+            pos = list(selected_node.getPos())
+            pos[coord[1]] = value
+            selected_node.setPos(*pos)
+        elif coord[0] == 1:  # Rotation
+            hpr = list(selected_node.getHpr())
+            hpr[coord[1]] = value
+            selected_node.setHpr(*hpr)
+        elif coord[0] == 2:  # Scale
+            scale = list(selected_node.getScale())
+            scale[coord[1]] = value
+            selected_node.setScale(*scale)
 
 def on_item_clicked(item, column):
     global selected_node
     node = item.data(0, Qt.UserRole)  # Retrieve the NodePath stored in the item
+    
     if node:
         selected_node = node
+        # Update the input boxes with the node's properties
+        input_boxes[(0, 0)].setText(str(node.getX()))
+        input_boxes[(0, 1)].setText(str(node.getY()))
+        input_boxes[(0, 2)].setText(str(node.getZ()))
+                
+        input_boxes[(1, 0)].setText(str(node.getH()))
+        input_boxes[(1, 1)].setText(str(node.getP()))
+        input_boxes[(1, 2)].setText(str(node.getR()))
 
+        input_boxes[(2, 0)].setText(str(node.getScale().x))
+        input_boxes[(2, 1)].setText(str(node.getScale().y))
+        input_boxes[(2, 2)].setText(str(node.getScale().z))
 
 class NodeEditor(QGraphicsView):
     def __init__(self, parent=None):
@@ -248,6 +368,8 @@ if __name__ == "__main__":
     # Empty Left Panel
     left_panel = QWidget()
     left_panel.setLayout(QVBoxLayout())
+    input_box = QLineEdit()
+    left_panel.layout().addWidget(input_box)
     left_label = QLabel("Left Panel (Empty)")
     left_panel.layout().addWidget(left_label)
     viewport_splitter.addWidget(left_panel)
@@ -271,12 +393,31 @@ if __name__ == "__main__":
     hierarchy_tree = QTreeWidget()
     hierarchy_tree.setHeaderLabel("Scene Hierarchy")
     right_panel.layout().addWidget(hierarchy_tree)
+    # Create a QWidget to hold the grid layout
+    grid_widget = QWidget()
+    # Create a grid layout for the input boxes (3x3)
+    grid_layout = QGridLayout(grid_widget)
+    
+    # Create 3x3 QLineEdit input boxes
+    input_boxes = {}
+    for i in range(3):
+        for j in range(3):
+            if i == 0 and j == 0:
+                label = QLabel("transforms x y z: ")
+            if i == 1 and j == 0:
+                label = QLabel("rotation x y z: ")
+            if i == 2 and j == 0:
+                label = QLabel("scale x y z: ")
+            input_box = QLineEdit(grid_widget)
+            input_boxes[(i, j)] = input_box
+            grid_layout.addWidget(label, i * 2, j)  # Add label in a separate row
+            grid_layout.addWidget(input_box, i * 2 + 1, j)  # Add input box below the label
 
-    # Add example hierarchy nodes
-    root_item = QTreeWidgetItem(hierarchy_tree, ["Root Node"])
-    panda_item = QTreeWidgetItem(root_item, ["Panda"])
-    grid_item = QTreeWidgetItem(root_item, ["Grid"])
-    root_item.setExpanded(True)  # Expand the root node
+
+
+
+    # Add the grid widget to the main layout
+    right_panel.layout().addWidget(grid_widget)
 
     viewport_splitter.addWidget(right_panel)
 
@@ -290,6 +431,13 @@ if __name__ == "__main__":
     populate_hierarchy(hierarchy_tree, render)  # This will populate the hierarchy panel
 
     hierarchy_tree.itemClicked.connect(lambda item, column: on_item_clicked(item, column))
+
+    prop = properties
+    for coord, box in input_boxes.items():
+        # Use a default argument to capture the value of `coord` correctly
+        box.textChanged.connect(lambda box=box, coord=coord: prop.update_node_property(box, coord))
+
+    
 
     # Show the application window
     appw.show()
