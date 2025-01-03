@@ -6,6 +6,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from direct.stdpy.file import open, isdir, isfile
 from copy import copy
+import sys
 import io
 from contextlib import redirect_stdout
 
