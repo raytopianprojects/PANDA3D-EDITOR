@@ -44,7 +44,7 @@ class TerrainCollider:
                 collider_node = CollisionNode(f"Collider_{x}_{y}")
                 collider_box = CollisionBox(
                     Point3(center_x, center_y, center_z),  # Center of the box
-                    size, 
+                    size,
                     size,
                     50  # Full height
                 )
@@ -59,10 +59,12 @@ class TerrainCollider:
 
 
 class TerrainPainterApp(DirectObject):
-    def __init__(self, world: Panda3DWorld):
+    def __init__(self, world: Panda3DWorld, panda_widget):
         super().__init__()
         self.world = world
-        
+        self.widget = panda_widget
+        self.holding = False
+
         # Load the heightmap image as a PNMImage
         self.heightmap_image = PNMImage(Filename("Heightmap.png"))
 
@@ -106,10 +108,10 @@ class TerrainPainterApp(DirectObject):
 
         self.terrain_np.set_collide_mask(BitMask32.bit(1))
 
-        
-
         self.accept('mouse1', self.start_holding)
         self.accept('mouse1-up', self.stop_holding)
+        self.accept("mouse-move", self.mouse_move)
+        self.mx, self.my = 0,0
 
         self.terrain_collider = TerrainCollider(1024, 100)
 
@@ -119,13 +121,17 @@ class TerrainPainterApp(DirectObject):
 
         self.max_height = 1
 
-    def start_holding(self):
-        base.task_mgr.add(self.on_mouse_click, "on_mouse_click")
+    def start_holding(self, position):
+        self.mx, self.my = position['x'], position['y']
+        self.world.add_task(self.on_mouse_click, "on_mouse_click", appendTask=True)
         self.height = 0.0
         self.holding = True
 
-    def stop_holding(self):
+    def stop_holding(self, position):
         self.holding = False
+
+    def mouse_move(self, evt: dict):
+        self.mx, self.my = evt['x'], evt['y']
 
     def adjust_speed_of_brush(self, brush_image, speed_factor):
         # Create a new PNMImage with the same size and data as the original
@@ -154,12 +160,8 @@ class TerrainPainterApp(DirectObject):
         return new_brush_image
 
     def on_mouse_click(self, Task):
-        if not base.mouseWatcherNode.has_mouse():
-            print("Mouse not detected!")
-            return
-
-        mouse_pos = self.mouseWatcherNode.get_mouse()
-        self.mouse_ray.set_from_lens(base.camNode, mouse_pos.get_x(), mouse_pos.get_y())
+        print(self.mx, self.my, ((self.mx / self.widget.width()) * 2) - 1, ((self.my / self.widget.height()) * 2) - 1)
+        self.mouse_ray.set_from_lens(self.world.cam.node(), ((self.mx / self.widget.width()) * 2) - 1, ((self.my / self.widget.height()) * 2) - 1)
 
         self.collision_handler.clear_entries()
         self.collision_traverser.traverse(base.render)
@@ -179,7 +181,7 @@ class TerrainPainterApp(DirectObject):
         if self.holding:
             return Task.cont
         else:
-            return None
+            return Task.done
 
     def adjust_brightness_pillow(self, brush_image_path, brightness_factor):
         # Open the brush image using Pillow
