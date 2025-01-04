@@ -15,6 +15,7 @@ from camera import FlyingCamera
 from node import NodeEditor
 from shader_editor import ShaderEditor
 import terrainEditor
+import importlib
 
 
 class PandaTest(Panda3DWorld):
@@ -76,6 +77,7 @@ class PandaTest(Panda3DWorld):
 
     def make_terrain(self):
         self.terrain_generate = terrainEditor.TerrainPainterApp(world, pandaWidget)
+        selected_node = self.terrain_generate.terrain_node
 
 
 
@@ -143,6 +145,28 @@ def new_tab(index):
         shader_editor.hide_nodes()
     else:
         shader_editor.show_nodes()
+
+#Script inspector Functions
+class Script_Inspector:
+    def __init__(self):
+            
+        self.scripts = {}
+
+        self.temp_build = ""
+
+    def set_script(self, path, node):
+        script_path = path
+        node.set_python_tag("ScriptPath", script_path)
+        
+    def load_script(self, node):
+        script_path = node.get_python_tag("ScriptPath")
+        if script_path:
+            spec = importlib.util.spec_from_file_location("script", script_path)
+            script_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(script_module)
+            if hasattr(script_module, "Script"):
+                script_instance = script_module.Script(node)
+                node.set_python_tag("ScriptInstance", script_instance)
 
 
 #Toolbar functions
