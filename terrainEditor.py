@@ -62,7 +62,8 @@ class TerrainPainterApp(DirectObject):
     def __init__(self, world: Panda3DWorld):
         super().__init__()
         self.world = world
-        
+        self.holding = False
+
         # Load the heightmap image as a PNMImage
         self.heightmap_image = PNMImage(Filename("Heightmap.png"))
 
@@ -106,8 +107,6 @@ class TerrainPainterApp(DirectObject):
 
         self.terrain_np.set_collide_mask(BitMask32.bit(1))
 
-        
-
         self.accept('mouse1', self.start_holding)
         self.accept('mouse1-up', self.stop_holding)
 
@@ -119,12 +118,12 @@ class TerrainPainterApp(DirectObject):
 
         self.max_height = 1
 
-    def start_holding(self):
-        base.task_mgr.add(self.on_mouse_click, "on_mouse_click")
+    def start_holding(self, position):
+        self.world.add_task(self.on_mouse_click, "on_mouse_click", extraArgs=[position], appendTask=True)
         self.height = 0.0
         self.holding = True
 
-    def stop_holding(self):
+    def stop_holding(self, position):
         self.holding = False
 
     def adjust_speed_of_brush(self, brush_image, speed_factor):
@@ -153,13 +152,8 @@ class TerrainPainterApp(DirectObject):
 
         return new_brush_image
 
-    def on_mouse_click(self, Task):
-        if not base.mouseWatcherNode.has_mouse():
-            print("Mouse not detected!")
-            return
-
-        mouse_pos = self.mouseWatcherNode.get_mouse()
-        self.mouse_ray.set_from_lens(base.camNode, mouse_pos.get_x(), mouse_pos.get_y())
+    def on_mouse_click(self, mouse_pos, Task):
+        self.mouse_ray.set_from_lens(base.camNode, mouse_pos['x'], mouse_pos['y'])
 
         self.collision_handler.clear_entries()
         self.collision_traverser.traverse(base.render)
@@ -179,7 +173,7 @@ class TerrainPainterApp(DirectObject):
         if self.holding:
             return Task.cont
         else:
-            return None
+            return Task.done
 
     def adjust_brightness_pillow(self, brush_image_path, brightness_factor):
         # Open the brush image using Pillow
