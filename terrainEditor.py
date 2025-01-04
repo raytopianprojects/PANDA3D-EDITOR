@@ -18,9 +18,9 @@ from QPanda3D.Panda3DWorld import Panda3DWorld
 
 
 class TerrainCollider:
-    def __init__(self, terrain_size, subdivision):
+    def __init__(self, terrain_size, subdivisions):
         self.terrain_size = terrain_size
-        self.subdivision = subdivision
+        self.subdivisions = subdivisions
         self.root = NodePath("TerrainColliders")
         self.root.reparent_to(render)
 
@@ -28,16 +28,26 @@ class TerrainCollider:
 
     def create_collider_tree(self):
         size = self.terrain_size
-        step = size * 3  #// self.subdivision
+        step = size  # Subdivide the terrain
 
-        # Adjust the collision box size based on the step
-        collision_box_size = step  # Use step directly as the size for the collision box
+        # Half-size of each collision box
+        collision_box_half_size = step / 2.0
 
-        for x in range(0, size, step):
-            for y in range(0, size, step):
+        for x in range(self.subdivisions):
+            for y in range(self.subdivisions):
+                # Calculate the center of each subdivision
+                center_x = (x * step) + collision_box_half_size
+                center_y = (y * step) + collision_box_half_size
+                center_z = 25  # Adjust height as needed
+
+                # Create the collision box
                 collider_node = CollisionNode(f"Collider_{x}_{y}")
-                collider_box = CollisionBox(Point3(x + step / 2, y + step / 2, 0), collision_box_size / 2,
-                                            collision_box_size / 2, 50)
+                collider_box = CollisionBox(
+                    Point3(center_x, center_y, center_z),  # Center of the box
+                    size, 
+                    size,
+                    50  # Full height
+                )
                 collider_node.add_solid(collider_box)
                 collider_node.set_from_collide_mask(BitMask32.bit(1))
                 collider_node.set_into_collide_mask(BitMask32.bit(1))
