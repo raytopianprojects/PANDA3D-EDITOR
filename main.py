@@ -14,6 +14,7 @@ from direct.showbase.DirectObject import DirectObject
 from camera import FlyingCamera
 from node import NodeEditor
 from shader_editor import ShaderEditor
+from file_explorer import FileExplorer
 import terrainEditor
 
 
@@ -150,6 +151,7 @@ def new_project():
     print("Open file triggered")
 
 def save_file():
+    world.messenger.send("save")
     print("Save file triggered")
 
 def load_project():
@@ -262,8 +264,8 @@ if __name__ == "__main__":
     viewport_inner_splitter.addWidget(pandaWidget)
 
     # Drag-and-Drop File System
-    file_system_panel = QTreeWidget()
-    file_system_panel.setHeaderLabel("File System")
+    file_system_panel = FileExplorer()
+    #file_system_panel.setHeaderLabel("File System")
     viewport_inner_splitter.addWidget(file_system_panel)
 
     # Hierarchy Viewer (Right Panel)

@@ -1,8 +1,7 @@
 import os
 from panda3d.core import *
-from direct.showbase.ShowBase import messenger
+from direct.showbase.ShowBase import messenger, DirectObject
 from PyQt5.QtCore import *
-from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from direct.stdpy.file import open, isdir, isfile
 from copy import copy
@@ -19,9 +18,24 @@ class ShaderEditor(QWidget):
         self.name = None
         self.shaders: dict[str, QPlainTextEdit] = {}
         self.last_shaders = None
+        self.do = DirectObject.DirectObject()
+        self.do.accept("save", self.save)
+
+        self.node = NodePath("shader_node")
+        self.node.reparent_to(render)
+        self.node.set_z(-3)
+        e = base.loader.load_model("environment")
+        e.reparent_to(self.node)
 
         self.h = QHBoxLayout()
         self.setLayout(self.h)
+
+        self.meshes = ("environment", "panda", "smiley")
+        self.mesh_select = QComboBox(self)
+        self.mesh_select.currentIndexChanged.connect(self.change_mesh)
+        for m in self.meshes:
+            self.mesh_select.addItem(m)
+
 
         self.tb = QTabWidget(self)
         self.viewport_splitter = QSplitter(Qt.Vertical)
@@ -36,6 +50,7 @@ class ShaderEditor(QWidget):
 
         self.error_scroll.setWidget(self.error_box)
 
+        self.viewport_splitter.addWidget(self.mesh_select)
         self.viewport_splitter.addWidget(self.tb)
         self.viewport_splitter.addWidget(self.error_scroll)
 
@@ -73,16 +88,8 @@ void main() {
                      "Tess Domain": "", }.items():
             self.add_tab(x, y)
 
-        newAct = QAction('Save', self)
-        newAct.triggered.connect(self.save)
-        newAct.setShortcut(QKeySequence("Ctrl+S"))
-        self.addAction(newAct)
-        self.node = NodePath("shader_node")
-        self.node.reparent_to(render)
-        self.node.set_z(-3)
-        e = base.loader.load_model("environment")
-        e.reparent_to(self.node)
-        #self.hide_nodes()
+
+
         self.apply_shaders()
 
     def hide_nodes(self):
@@ -164,3 +171,16 @@ void main() {
                 if self.last_shaders:
                     self.node.set_shader(Shader.make(Shader.SL_GLSL, **self.last_shaders))
         self.error_box.setText(f.getvalue() + self.error_box.text())
+
+    def change_mesh(self, index):
+        c: NodePath = None
+        for c in self.node.getChildren():
+            c.remove_node()
+        e = base.loader.load_model(self.meshes[index])
+        e.reparent_to(self.node)
+
+        if index != 0:
+            self.node.set_z(3)
+        else:
+            self.node.set_z(-3)
+
