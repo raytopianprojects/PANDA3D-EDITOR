@@ -75,7 +75,7 @@ class PandaTest(Panda3DWorld):
         self.roll_seq.start()
 
     def make_terrain(self):
-        self.terrain_generate = terrainEditor.TerrainPainterApp(world)
+        self.terrain_generate = terrainEditor.TerrainPainterApp(world, pandaWidget)
 
 
 
