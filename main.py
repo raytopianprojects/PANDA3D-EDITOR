@@ -179,72 +179,68 @@ class ScriptInspector(QWidget):
         """
         Load a script, create an instance, and display its properties in a new box.
         """
-        # Load and execute the script
-        spec = importlib.util.spec_from_file_location("script", path)
-        script_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(script_module)
+        try:
+            # Load and execute the script
+            spec = importlib.util.spec_from_file_location("script", path)
+            script_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(script_module)
 
-        if hasattr(script_module, "Script"):
-            script_instance = script_module.Script(node)
-            node.set_python_tag(path, script_instance)
+            if hasattr(script_module, "Script"):
+                script_instance = script_module.Script(node)
+                node.set_python_tag(path, script_instance)
 
-            # Create a new group box for the script
-            script_box = self.create_script_box(path, script_instance)
-            self.scripts[path] = script_box
-            self.layout.addWidget(script_box)
+                # Create a new group box for the script
+                script_box = self.create_script_box(path, script_instance)
+                self.scripts[path] = script_box
+                self.layout.addWidget(script_box)
 
-            # Set the current script instance
-            self.current_script_instance = script_instance
+                # Set the current script instance
+                self.current_script_instance = script_instance
 
-            # Explicitly update the layout to ensure proper rendering
-            self.layout.invalidate()  # Forces the layout to be recalculated
-            self.layout.update()      # Triggers the UI to refresh
+        except Exception as e:
+            print(f"Error loading script from {path}: {e}")
 
     def create_script_box(self, path, script_instance):
         """
         Create a QGroupBox for the script with its properties.
         """
-        print(f"Creating script box for: {path}")
         script_box = QGroupBox(f"Script: {path}")
-        script_layout = QVBoxLayout()  # Use QVBoxLayout instead of QFormLayout
+        script_box.setStyleSheet("QGroupBox { background-color: gray; border: 1px solid black; }")
+        script_layout = QVBoxLayout()
 
         # Add properties as editable fields
         attributes = vars(script_instance)
-        print(f"Attributes found: {attributes}")
         for attr, value in attributes.items():
             input_field = QLineEdit(str(value))
             input_field.setObjectName(attr)
-            script_layout.addWidget(input_field)  # Add input fields vertically
+            script_layout.addWidget(input_field)
 
         script_box.setLayout(script_layout)
-        script_box.setSizePolicy(1, 1)  # Allow the box to expand
         return script_box
 
     def apply_changes(self):
         """
-        Apply changes made in the inspector to the script instance.
+        Apply changes made in the inspector to the script instances.
         """
-        if not self.current_script_instance:
-            return
-
-        for script_box in self.scripts.values():
+        for path, script_box in self.scripts.items():
             for i in range(script_box.layout().count()):
-                label = script_box.layout().itemAt(i).widget().objectName()
-                input_field = script_box.layout().itemAt(i).widget()
-                new_value = input_field.text()
+                widget = script_box.layout().itemAt(i).widget()
+                if isinstance(widget, QLineEdit):
+                    attr_name = widget.objectName()
+                    new_value = widget.text()
 
-                # Update the script attribute
-                try:
-                    old_value = getattr(self.current_script_instance, label)
-                    if isinstance(old_value, int):
-                        new_value = int(new_value)
-                    elif isinstance(old_value, float):
-                        new_value = float(new_value)
-                    setattr(self.current_script_instance, label, new_value)
-                except ValueError:
-                    print(f"Invalid value for {label}. Could not convert '{new_value}'.")
-
-        print(f"Updated script instance: {self.current_script_instance}")
+                    try:
+                        script_instance = self.scripts[path].script_instance
+                        old_value = getattr(script_instance, attr_name)
+                        if isinstance(old_value, int):
+                            new_value = int(new_value)
+                        elif isinstance(old_value, float):
+                            new_value = float(new_value)
+                        setattr(script_instance, attr_name, new_value)
+                    except ValueError:
+                        print(f"Invalid value for {attr_name} in script {path}.")
+                    except Exception as e:
+                        print(f"Error applying changes to {attr_name}: {e}")
 
 
 
@@ -375,7 +371,7 @@ if __name__ == "__main__":
     node = DummyNode("Cube")
 
     inspector = ScriptInspector()
-    inspector.set_script("terrainEditor.py", node)
+    inspector.set_script("./example.py", node)
     inspector.show()
     viewport_splitter.addWidget(left_panel)
 
@@ -474,6 +470,7 @@ if __name__ == "__main__":
 
 
         QListWidget::item {
+        
 
             height: 50px;
             color: #FFFFFF;
