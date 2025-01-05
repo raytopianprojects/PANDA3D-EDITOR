@@ -151,42 +151,102 @@ class Node:
     def __init__(self, ref, path):
         self.ref = ref
         self.paths = [path]
+
     def update(self, path):
-        self.paths.append(path) 
+        if path not in self.paths:
+            self.paths.append(path)
 
 
-#Script inspector Functions
-class Script_Inspector:
-    def __init__(self):
-            
-        self.scripts = {}
-        
-        self.filenames = [] 
+class ScriptInspector(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Script Inspector")
+        self.resize(500, 700)
 
-        self.temp_build = ""
+        # Main layout
+        self.layout = QVBoxLayout(self)
+        self.apply_button = QPushButton("Apply Changes")
+        self.layout.addWidget(self.apply_button)
 
-    def set_script(self, path, node, filename):
-        script_path = path
-        node.set_python_tag(filename, script_path)
-        for nodel in self.scripts.items():
-            if path not in nodel.paths:
-                nodel.update(path)
-            elif (ref for ref in self.scripts.keys if ref.ref != node):
-                node1 = Node(node, path)
+        # Data storage
+        self.scripts = {}  # Stores scripts with their group boxes
+        self.current_script_instance = None
 
-                self.scripts[node] = node1
-        
-    def load_script(self, node):
-        for n in self.scripts.keys():
-            if node == n.ref:
-                script_path = node.get_python_tag(n.paths)
-                if script_path:
-                    spec = importlib.util.spec_from_file_location("script", script_path)
-                    script_module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(script_module)
-                    if hasattr(script_module, "Script"):
-                        script_instance = script_module.Script(node)
-                        node.set_python_tag(n.paths + "-instance", script_instance)
+        # Signal connections
+        self.apply_button.clicked.connect(self.apply_changes)
+
+    def set_script(self, path, node):
+        """
+        Load a script, create an instance, and display its properties in a new box.
+        """
+        # Load and execute the script
+        spec = importlib.util.spec_from_file_location("script", path)
+        script_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(script_module)
+
+        if hasattr(script_module, "Script"):
+            script_instance = script_module.Script(node)
+            node.set_python_tag(path, script_instance)
+
+            # Create a new group box for the script
+            script_box = self.create_script_box(path, script_instance)
+            self.scripts[path] = script_box
+            self.layout.addWidget(script_box)
+
+            # Set the current script instance
+            self.current_script_instance = script_instance
+
+            # Explicitly update the layout to ensure proper rendering
+            self.layout.invalidate()  # Forces the layout to be recalculated
+            self.layout.update()      # Triggers the UI to refresh
+
+    def create_script_box(self, path, script_instance):
+        """
+        Create a QGroupBox for the script with its properties.
+        """
+        print(f"Creating script box for: {path}")
+        script_box = QGroupBox(f"Script: {path}")
+        script_layout = QVBoxLayout()  # Use QVBoxLayout instead of QFormLayout
+
+        # Add properties as editable fields
+        attributes = vars(script_instance)
+        print(f"Attributes found: {attributes}")
+        for attr, value in attributes.items():
+            input_field = QLineEdit(str(value))
+            input_field.setObjectName(attr)
+            script_layout.addWidget(input_field)  # Add input fields vertically
+
+        script_box.setLayout(script_layout)
+        script_box.setSizePolicy(1, 1)  # Allow the box to expand
+        return script_box
+
+    def apply_changes(self):
+        """
+        Apply changes made in the inspector to the script instance.
+        """
+        if not self.current_script_instance:
+            return
+
+        for script_box in self.scripts.values():
+            for i in range(script_box.layout().count()):
+                label = script_box.layout().itemAt(i).widget().objectName()
+                input_field = script_box.layout().itemAt(i).widget()
+                new_value = input_field.text()
+
+                # Update the script attribute
+                try:
+                    old_value = getattr(self.current_script_instance, label)
+                    if isinstance(old_value, int):
+                        new_value = int(new_value)
+                    elif isinstance(old_value, float):
+                        new_value = float(new_value)
+                    setattr(self.current_script_instance, label, new_value)
+                except ValueError:
+                    print(f"Invalid value for {label}. Could not convert '{new_value}'.")
+
+        print(f"Updated script instance: {self.current_script_instance}")
+
+
 
 
 #Toolbar functions
@@ -296,6 +356,27 @@ if __name__ == "__main__":
     left_panel.layout().addWidget(input_box)
     left_label = QLabel("Left Panel (Empty)")
     left_panel.layout().addWidget(left_label)
+
+    # Example node and script
+    class DummyNode:
+        def __init__(self, name):
+            self.name = name
+            self.tags = {}
+
+        def get_name(self):
+            return self.name
+
+        def set_python_tag(self, key, value):
+            self.tags[key] = value
+
+        def get_python_tag(self, key):
+            return self.tags.get(key)
+
+    node = DummyNode("Cube")
+
+    inspector = ScriptInspector()
+    inspector.set_script("terrainEditor.py", node)
+    inspector.show()
     viewport_splitter.addWidget(left_panel)
 
     # Splitter for 3D Viewport and File System
@@ -376,6 +457,61 @@ if __name__ == "__main__":
     for coord, box in input_boxes.items():
         # Use a default argument to capture the value of `coord` correctly
         box.textChanged.connect(lambda box=box, coord=coord: prop.update_node_property(box, coord))
+
+    # Set the background color of the widget to gray
+    appw.setStyleSheet("""
+        background-color: #262626;
+        color: #FFFFFF;
+        font-family: Titillium;
+        font-size: 18px;
+        QListWidget {
+
+        color: #FFFFFF;
+
+        background-color: #33373B;
+
+        }
+
+
+        QListWidget::item {
+
+            height: 50px;
+            color: #FFFFFF;
+
+        }
+
+
+        QListWidget::item:selected {
+
+            background-color: #2ABf9E;
+
+        }
+
+
+        QLabel {
+
+            background-color: #262626;
+            color: #FFFFFF;
+            qproperty-alignment: AlignCenter;
+
+        }
+
+
+        QPushButton {
+
+            background-color: #262626;
+
+            padding: 20px;
+
+            font-size: 18px;
+
+        }
+                       
+        QTabWidget {
+            background-color: #262626;
+            color: #262626;
+        }
+        """)
 
     
 
