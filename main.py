@@ -147,27 +147,46 @@ def new_tab(index):
     else:
         shader_editor.show_nodes()
 
+class Node:
+    def __init__(self, ref, path):
+        self.ref = ref
+        self.paths = [path]
+    def update(self, path):
+        self.paths.append(path) 
+
+
 #Script inspector Functions
 class Script_Inspector:
     def __init__(self):
             
         self.scripts = {}
+        
+        self.filenames = [] 
 
         self.temp_build = ""
 
-    def set_script(self, path, node):
+    def set_script(self, path, node, filename):
         script_path = path
-        node.set_python_tag("ScriptPath", script_path)
+        node.set_python_tag(filename, script_path)
+        for nodel in self.scripts.items():
+            if path not in nodel.paths:
+                nodel.update(path)
+            elif (ref for ref in self.scripts.keys if ref.ref != node):
+                node1 = Node(node, path)
+
+                self.scripts[node] = node1
         
     def load_script(self, node):
-        script_path = node.get_python_tag("ScriptPath")
-        if script_path:
-            spec = importlib.util.spec_from_file_location("script", script_path)
-            script_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(script_module)
-            if hasattr(script_module, "Script"):
-                script_instance = script_module.Script(node)
-                node.set_python_tag("ScriptInstance", script_instance)
+        for n in self.scripts.keys():
+            if node == n.ref:
+                script_path = node.get_python_tag(n.paths)
+                if script_path:
+                    spec = importlib.util.spec_from_file_location("script", script_path)
+                    script_module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(script_module)
+                    if hasattr(script_module, "Script"):
+                        script_instance = script_module.Script(node)
+                        node.set_python_tag(n.paths + "-instance", script_instance)
 
 
 #Toolbar functions
