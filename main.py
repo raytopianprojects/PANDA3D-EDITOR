@@ -467,6 +467,12 @@ if __name__ == "__main__":
         background-color: #33373B;
 
         }
+                       
+        QWidget {
+                background-color: #2c3e50;  /* Background color */
+                border: 2px solid #34495e; /* Border color and width */
+                border-radius: 20px;       /* Rounded edges */
+        }
 
 
         QListWidget::item {
