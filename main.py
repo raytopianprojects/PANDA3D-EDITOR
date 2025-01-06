@@ -17,6 +17,7 @@ from shader_editor import ShaderEditor
 from file_explorer import FileExplorer
 import terrainEditor
 import importlib
+import os
 
 
 class PandaTest(Panda3DWorld):
@@ -157,11 +158,14 @@ class Node:
             self.paths.append(path)
 
 
+
 class ScriptInspector(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Script Inspector")
         self.resize(500, 700)
+
+        self.parent = parent
 
         # Main layout
         self.layout = QVBoxLayout(self)
@@ -171,6 +175,14 @@ class ScriptInspector(QWidget):
         # Data storage
         self.scripts = {}  # Stores scripts with their group boxes
         self.current_script_instance = None
+
+        # Scrollable area setup
+        self.scroll_area = QScrollArea(self)
+        self.scroll_area.setWidgetResizable(True)  # Allow the scroll area to resize its content
+        self.scroll_widget = QWidget()  # Create a widget to hold all the script boxes
+        self.scroll_layout = QVBoxLayout(self.scroll_widget)
+        self.scroll_area.setWidget(self.scroll_widget)
+        self.layout.addWidget(self.scroll_area)  # Add the scroll area to the main layout
 
         # Signal connections
         self.apply_button.clicked.connect(self.apply_changes)
@@ -192,7 +204,7 @@ class ScriptInspector(QWidget):
                 # Create a new group box for the script
                 script_box = self.create_script_box(path, script_instance)
                 self.scripts[path] = script_box
-                self.layout.addWidget(script_box)
+                self.scroll_layout.addWidget(script_box)  # Add to the scrollable layout
 
                 # Set the current script instance
                 self.current_script_instance = script_instance
@@ -202,21 +214,120 @@ class ScriptInspector(QWidget):
 
     def create_script_box(self, path, script_instance):
         """
-        Create a QGroupBox for the script with its properties.
+        Create a QGroupBox for the script with its properties, including drag-and-drop support for object references.
         """
-        script_box = QGroupBox(f"Script: {path}")
-        script_box.setStyleSheet("QGroupBox { background-color: gray; border: 1px solid black; }")
+        script_box = QGroupBox()
+        script_box.setStyleSheet("QGroupBox { background-color: gray; border: 1px solid black; border-radius: 20px;}")
         script_layout = QVBoxLayout()
+        ll = QLabel(f"Script: {os.path.splitext(os.path.basename(path))[0]}")
+        ll.setText(f"Script: {os.path.splitext(os.path.basename(path))[0]}")
+        script_layout.addWidget(ll)
+
+        # Set a fixed width for the box
+        fixed_width = 420
 
         # Add properties as editable fields
         attributes = vars(script_instance)
-        for attr, value in attributes.items():
-            input_field = QLineEdit(str(value))
-            input_field.setObjectName(attr)
-            script_layout.addWidget(input_field)
+        item_height = 50  # Height of each input field
+        spacing = 30  # Space between items
 
+        for attr, value in attributes.items():
+            if isinstance(value, NodePath):  # Handle NodePath (object reference)
+                self.label = Label(self)
+                script_layout.addWidget(self.label)
+                
+            elif isinstance(value, Texture):  # Handle Texture type
+                # Create a horizontal layout for texture details
+                horizontal_layout = QHBoxLayout()
+
+                # Display texture as an image
+                pixmap = QPixmap(value.get_name())  # Assuming `value.get_name()` is the file path
+                texture_label = Label(self)
+                texture_label.setPixmap(pixmap)
+                horizontal_layout.addWidget(texture_label)
+
+                # Add widgets for texture details
+                label = Label(f"Texture: Name: {value.get_name()}")
+                horizontal_layout.addWidget(label)
+
+
+                # Container for horizontal layout
+                container_widget = QWidget()
+                container_widget.setLayout(horizontal_layout)
+
+                # Add container to the script layout
+                script_layout.addWidget(container_widget)
+            
+            else:
+                # Regular input fields
+                input_field = QLineEdit(str(value))
+                input_field.setObjectName(attr)
+                script_layout.addWidget(input_field)
+
+
+        # Set layout properties for spacing
+        script_layout.setSpacing(spacing)
+
+        # Calculate the height based on the number of items
+        num_items = len(attributes)
+        total_height = (num_items * item_height) + ((num_items - 1) * spacing)
         script_box.setLayout(script_layout)
+
         return script_box
+
+    def drag_enter_event(self, event):
+        """
+        Handle the drag enter event to validate the data being dragged.
+        """
+        if event.mimeData().hasText():
+            event.accept()
+        else:
+            event.ignore()
+
+    def drop_event(self, event):
+        """
+        Handle the drop event to set the dropped data as the input text.
+        """
+        if event.mimeData().hasText():
+            dropped_text = event.mimeData().text()
+            event.source().setText(dropped_text)
+            event.accept()
+        else:
+            event.ignore()
+
+    def create_drop_event_handler(self, script_instance, attr_name):
+        """
+        Returns a drop event handler for the specific script attribute.
+        """
+        def drop_event(event):
+            if event.mimeData().hasText():
+                dropped_name = event.mimeData().text()
+                node_path = self.get_node_by_name(dropped_name)  # Resolve NodePath from the scene
+    
+                if node_path:
+                    # Update the script's attribute
+                    setattr(script_instance, attr_name, node_path)
+    
+                    # Update the input field to display the new object name
+                    event.source().setText(node_path.get_name())
+                    event.accept()
+                else:
+                    print(f"Error: NodePath '{dropped_name}' not found.")
+                    event.ignore()
+            else:
+                event.ignore()
+    
+        return drop_event
+
+
+    def get_node_by_name(self, name):
+        """
+        Retrieve a NodePath by name from the scene graph.
+        """
+        for node in render.find_all_matches("**"):  # Search in the scene graph
+            if node.get_name() == name:
+                return node
+        return None
 
     def apply_changes(self):
         """
@@ -242,7 +353,35 @@ class ScriptInspector(QWidget):
                     except Exception as e:
                         print(f"Error applying changes to {attr_name}: {e}")
 
+class Label(QLabel):
+    def __init__(self, parent):
+        super(Label, self).__init__(parent)
+        self.setAcceptDrops(True)
+        self.setText("None")
+        self.setStyleSheet("QGroupBox { background-color: gray; border: 2px solid white; border-radius: 10px;}")
 
+    def dragEnterEvent(self, event):
+        mime = event.mimeData()
+        if mime.hasText() or mime.hasFormat('application/x-qabstractitemmodeldatalist'):
+            event.accept()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event):
+        mime = event.mimeData()
+        if mime.hasText():
+            self.setText(mime.text())
+        elif mime.hasFormat('application/x-qabstractitemmodeldatalist'):
+            textList = []
+            stream = QDataStream(mime.data('application/x-qabstractitemmodeldatalist'))
+            while not stream.atEnd():
+                row = stream.readInt()
+                col = stream.readInt()
+                for dataSize in range(stream.readInt()):
+                    role, value = stream.readInt(), stream.readQVariant()
+                    if role == Qt.DisplayRole:
+                        textList.append(value)
+            self.setText(', '.join(textList))
 
 
 #Toolbar functions
@@ -370,7 +509,14 @@ if __name__ == "__main__":
 
     node = DummyNode("Cube")
 
-    inspector = ScriptInspector()
+    inspector = ScriptInspector(left_panel)
+    inspector.set_script("./example.py", world.panda)
+    inspector.set_script("./example.py", node)
+    inspector.set_script("./example.py", node)
+    inspector.set_script("./example.py", node)
+    inspector.set_script("./example.py", node)
+    inspector.set_script("./example.py", node)
+    inspector.set_script("./example.py", node)
     inspector.set_script("./example.py", node)
     inspector.show()
     viewport_splitter.addWidget(left_panel)
@@ -393,6 +539,8 @@ if __name__ == "__main__":
     right_panel.setLayout(QVBoxLayout())
     hierarchy_tree = QTreeWidget()
     hierarchy_tree.setHeaderLabel("Scene Hierarchy")
+    hierarchy_tree.setDragEnabled(True)
+    hierarchy_tree.setAcceptDrops(True)
     right_panel.layout().addWidget(hierarchy_tree)
     # Create a QWidget to hold the grid layout
     grid_widget = QWidget()
@@ -479,7 +627,7 @@ if __name__ == "__main__":
         
 
             height: 50px;
-            color: #FFFFFF;
+            color: #000000;
 
         }
 
@@ -511,8 +659,8 @@ if __name__ == "__main__":
         }
                        
         QTabWidget {
-            background-color: #262626;
-            color: #262626;
+            background-color: #000000;
+            color: #000000;
         }
         """)
 
