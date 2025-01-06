@@ -456,20 +456,20 @@ if __name__ == "__main__":
 
     # Set the background color of the widget to gray
     appw.setStyleSheet("""
-        background-color: #262626;
-        color: #FFFFFF;
+        background-color: #313638;
+        color: #e8e9eb;
         font-family: Titillium;
         font-size: 18px;
         QListWidget {
 
-        color: #FFFFFF;
+        color: #e8e9eb;
 
-        background-color: #33373B;
+        background-color: #313638;
 
         }
                        
         QWidget {
-                background-color: #2c3e50;  /* Background color */
+                background-color: #313638;  /* Background color */
                 border: 2px solid #34495e; /* Border color and width */
                 border-radius: 20px;       /* Rounded edges */
         }
@@ -479,27 +479,27 @@ if __name__ == "__main__":
         
 
             height: 50px;
-            color: #FFFFFF;
+            color: #e8e9eb;
 
         }
 
 
         QListWidget::item:selected {
 
-            background-color: #2ABf9E;
+            background-color: #313638;
 
         }
 
 
         QLabel {
 
-            background-color: #262626;
-            color: #FFFFFF;
+            background-color: #313638;
+            color: #e8e9eb;
             qproperty-alignment: AlignCenter;
 
         }
 
-
+    QTabBar::tab:selected {background: #313638;}
         QPushButton {
 
             background-color: #262626;
@@ -511,8 +511,8 @@ if __name__ == "__main__":
         }
                        
         QTabWidget {
-            background-color: #262626;
-            color: #262626;
+            background-color: #e8e9eb;
+            color: #313638;
         }
         """)
 
