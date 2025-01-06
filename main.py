@@ -184,6 +184,9 @@ class ScriptInspector(QWidget):
         self.scroll_area.setWidget(self.scroll_widget)
         self.layout.addWidget(self.scroll_area)  # Add the scroll area to the main layout
 
+        
+        self.setAcceptDrops(True)
+
         # Signal connections
         self.apply_button.clicked.connect(self.apply_changes)
 
@@ -198,7 +201,7 @@ class ScriptInspector(QWidget):
             spec.loader.exec_module(script_module)
 
             if hasattr(script_module, "Script"):
-                script_instance = script_module.Script(node)
+                script_instance = script_module.Script()
                 node.set_python_tag(path, script_instance)
 
                 # Create a new group box for the script
@@ -240,16 +243,20 @@ class ScriptInspector(QWidget):
                 # Create a horizontal layout for texture details
                 horizontal_layout = QHBoxLayout()
 
-                # Display texture as an image
-                pixmap = QPixmap(value.get_name())  # Assuming `value.get_name()` is the file path
-                texture_label = Label(self)
-                texture_label.setPixmap(pixmap)
+                # Convert Panda3D's Filename to a string path and load into QPixmap
+                texture_path = Filename(value.get_name()).to_os_specific()
+                pixmap = QPixmap(texture_path)
+                texture_label = Label(None)
+                if not pixmap.isNull():
+                    texture_label.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio))
+                else:
+                    texture_label.setText("Image not found")
+
                 horizontal_layout.addWidget(texture_label)
 
-                # Add widgets for texture details
-                label = Label(f"Texture: Name: {value.get_name()}")
-                horizontal_layout.addWidget(label)
-
+                # Add a label for the texture name
+                name_label = QLabel(f"Texture: {value.get_name()}")
+                horizontal_layout.addWidget(name_label)
 
                 # Container for horizontal layout
                 container_widget = QWidget()
@@ -275,49 +282,24 @@ class ScriptInspector(QWidget):
 
         return script_box
 
-    def drag_enter_event(self, event):
-        """
-        Handle the drag enter event to validate the data being dragged.
-        """
-        if event.mimeData().hasText():
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():  # Check for valid URLs
             event.accept()
         else:
             event.ignore()
 
-    def drop_event(self, event):
-        """
-        Handle the drop event to set the dropped data as the input text.
-        """
-        if event.mimeData().hasText():
-            dropped_text = event.mimeData().text()
-            event.source().setText(dropped_text)
-            event.accept()
-        else:
-            event.ignore()
-
-    def create_drop_event_handler(self, script_instance, attr_name):
-        """
-        Returns a drop event handler for the specific script attribute.
-        """
-        def drop_event(event):
-            if event.mimeData().hasText():
-                dropped_name = event.mimeData().text()
-                node_path = self.get_node_by_name(dropped_name)  # Resolve NodePath from the scene
-    
-                if node_path:
-                    # Update the script's attribute
-                    setattr(script_instance, attr_name, node_path)
-    
-                    # Update the input field to display the new object name
-                    event.source().setText(node_path.get_name())
-                    event.accept()
+    def dropEvent(self, event):
+        if event.mimeData().hasUrls():
+            for url in event.mimeData().urls():
+                file_path = url.toLocalFile()
+                if file_path.endswith('.py'):  # Ensure it's a Python script
+                    self.set_script(file_path, selected_node)  # Call set_script to load it
+                    print("dropped: ", file_path)
                 else:
-                    print(f"Error: NodePath '{dropped_name}' not found.")
-                    event.ignore()
-            else:
-                event.ignore()
-    
-        return drop_event
+                    print(f"Ignored non-Python file: {file_path}")
+            event.accept()
+        else:
+            event.ignore()
 
 
     def get_node_by_name(self, name):
@@ -369,9 +351,32 @@ class Label(QLabel):
 
     def dropEvent(self, event):
         mime = event.mimeData()
-        if mime.hasText():
+    
+        if mime.hasUrls():  # Handle file drops, including image files
+            urls = mime.urls()
+            if urls:
+                file_path = urls[0].toLocalFile()  # Convert URL to a local file path
+                if file_path.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):  # Check for image formats
+                    pixmap = QPixmap(file_path)
+                    if not pixmap.isNull():
+                        # Display the image
+                        self.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio))
+                        print(f"Image loaded successfully: {file_path}")
+                    else:
+                        print(f"Failed to load image: {file_path}")
+                        self.setText("Invalid Image")
+                else:
+                    # If not an image, treat as a general file path
+                    print(f"Non-image file dropped: {file_path}")
+                    self.setText(file_path)
+            event.accept()
+    
+        elif mime.hasText():  # Handle plain text drops
             self.setText(mime.text())
-        elif mime.hasFormat('application/x-qabstractitemmodeldatalist'):
+            print(f"Text dropped: {mime.text()}")
+            event.accept()
+    
+        elif mime.hasFormat('application/x-qabstractitemmodeldatalist'):  # Handle internal Qt data
             textList = []
             stream = QDataStream(mime.data('application/x-qabstractitemmodeldatalist'))
             while not stream.atEnd():
@@ -382,6 +387,12 @@ class Label(QLabel):
                     if role == Qt.DisplayRole:
                         textList.append(value)
             self.setText(', '.join(textList))
+            print(f"Internal data dropped: {', '.join(textList)}")
+            event.accept()
+    
+        else:
+            print("Unsupported drop data type")
+            event.ignore()
 
 
 #Toolbar functions
