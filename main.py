@@ -246,25 +246,44 @@ class ScriptInspector(QWidget):
         Create a QGroupBox for the script with its properties, including drag-and-drop support for object references.
         """
         script_box = QGroupBox()
-        script_box.setStyleSheet("QGroupBox { background-color: gray; border: 1px solid black; border-radius: 20px;}")
-        script_layout = QVBoxLayout()
-        ll = QLabel(f"Script: {os.path.splitext(os.path.basename(path))[0]}")
-        ll.setText(f"Script: {os.path.splitext(os.path.basename(path))[0]}")
-        script_layout.addWidget(ll)
+        script_box.setStyleSheet("QGroupBox { background-color: gray; border: 1px solid black; border-radius: 20px; }")
 
-        # Set a fixed width for the box
-        fixed_width = 420
+        script_layout = QVBoxLayout()
+
+        # Horizontal layout for script label and image
+        title_layout = QHBoxLayout()
+
+        # Add small 10x10 image near the script label
+        image_label = QLabel()
+        image_label.setMaximumWidth(20)
+        image_label.setMaximumHeight(20)
+        pixmap = QPixmap("Grass.png")  # Replace with the path to your image file
+        if not pixmap.isNull():
+            pixmap = pixmap.scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            image_label.setPixmap(pixmap)
+        else:
+            image_label.setText("No Image")  # Fallback if image can't be loaded
+
+        script_layout.addLayout(title_layout)
+        title_layout.addWidget(image_label)
+
+        # Label for script name
+        script_name = QLabel(f"Script: {os.path.splitext(os.path.basename(path))[0]}")
+        script_name.setMaximumHeight(30)
+        title_layout.addWidget(script_name)
+
 
         # Add properties as editable fields
         attributes = vars(script_instance)
-        item_height = 50  # Height of each input field
-        spacing = 30  # Space between items
+        item_height = 30  # Desired height for input fields
+        max_height = 30   # Maximum height for input fields
+        spacing = 30      # Space between items
 
         for attr, value in attributes.items():
             if isinstance(value, NodePath):  # Handle NodePath (object reference)
-                self.label = Label(self)
-                script_layout.addWidget(self.label)
-                
+                label = Label(f"{attr}: {value.getName()}")
+                label.setMaximumHeight(max_height)
+                script_layout.addWidget(label)
             elif isinstance(value, Texture):  # Handle Texture type
                 # Create a horizontal layout for texture details
                 horizontal_layout = QHBoxLayout()
@@ -273,6 +292,7 @@ class ScriptInspector(QWidget):
                 texture_path = Filename(value.get_name()).to_os_specific()
                 pixmap = QPixmap(texture_path)
                 texture_label = Label(None)
+                texture_label.setMaximumHeight(100)
                 if not pixmap.isNull():
                     texture_label.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio))
                 else:
@@ -281,22 +301,23 @@ class ScriptInspector(QWidget):
                 horizontal_layout.addWidget(texture_label)
 
                 # Add a label for the texture name
-                name_label = QLabel(f"Texture: {value.get_name()}")
+                name_label = Label(f"Texture: {value.get_name()}")
+                name_label.setMaximumHeight(max_height)
                 horizontal_layout.addWidget(name_label)
 
                 # Container for horizontal layout
                 container_widget = QWidget()
+                container_widget.setMaximumHeight(110)
                 container_widget.setLayout(horizontal_layout)
 
                 # Add container to the script layout
                 script_layout.addWidget(container_widget)
-            
             else:
                 # Regular input fields
                 input_field = QLineEdit(str(value))
                 input_field.setObjectName(attr)
+                input_field.setMaximumHeight(max_height)  # Set maximum height
                 script_layout.addWidget(input_field)
-
 
         # Set layout properties for spacing
         script_layout.setSpacing(spacing)
@@ -307,6 +328,7 @@ class ScriptInspector(QWidget):
         script_box.setLayout(script_layout)
 
         return script_box
+
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():  # Check for valid URLs
@@ -682,11 +704,14 @@ if __name__ == "__main__":
 
         QPushButton {
 
-            background-color: #262626;
+            background-color: #428df5;
+            color: #428df5;
 
             padding: 20px;
 
             font-size: 18px;
+                       
+            border-radius: 20px;
 
         }
                        

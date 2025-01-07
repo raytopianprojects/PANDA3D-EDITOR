@@ -46,7 +46,7 @@ class TerrainCollider:
                     Point3(center_x, center_y, center_z),  # Center of the box
                     size,
                     size,
-                    50  # Full height
+                    1  # Full height
                 )
                 collider_node.add_solid(collider_box)
                 collider_node.set_from_collide_mask(BitMask32.bit(1))
@@ -160,8 +160,18 @@ class TerrainPainterApp(DirectObject):
         return new_brush_image
 
     def on_mouse_click(self, Task):
-        print(self.mx, self.my, ((self.mx / self.widget.width()) * 2) - 1, ((self.my / self.widget.height()) * 2) - 1)
-        self.mouse_ray.set_from_lens(self.world.cam.node(), ((self.mx / self.widget.width()) * 2) - 1, ((self.my / self.widget.height()) * 2) - 1)
+        # Get mouse position in normalized coordinates
+        pMouse = base.mouseWatcherNode.getMouse()
+        # Get near and far points in camera space
+        pFrom = Point3()
+        pTo = Point3()
+        base.camLens.extrude(pMouse, pFrom, pTo)
+        # Convert to world space
+        pFrom = render.getRelativePoint(base.cam, pFrom)
+        pTo = render.getRelativePoint(base.cam, pTo)
+        # Update the ray's origin and direction
+        self.mouse_ray.set_origin(pFrom)
+        self.mouse_ray.set_direction(pTo - pFrom)
 
         self.collision_handler.clear_entries()
         self.collision_traverser.traverse(base.render)
@@ -176,7 +186,7 @@ class TerrainPainterApp(DirectObject):
             print("No collision detected.")
 
         if not self.height >= self.max_height:
-            self.height += 0.05
+            self.height += 0.02
 
         if self.holding:
             return Task.cont
