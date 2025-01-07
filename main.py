@@ -126,21 +126,36 @@ class properties:
 def on_item_clicked(item, column):
     global selected_node
     node = item.data(0, Qt.UserRole)  # Retrieve the NodePath stored in the item
-    
+
     if node:
         selected_node = node
-        # Update the input boxes with the node's properties
+        # Update input boxes with node's properties
         input_boxes[(0, 0)].setText(str(node.getX()))
         input_boxes[(0, 1)].setText(str(node.getY()))
         input_boxes[(0, 2)].setText(str(node.getZ()))
-                
         input_boxes[(1, 0)].setText(str(node.getH()))
         input_boxes[(1, 1)].setText(str(node.getP()))
         input_boxes[(1, 2)].setText(str(node.getR()))
-
         input_boxes[(2, 0)].setText(str(node.getScale().x))
         input_boxes[(2, 1)].setText(str(node.getScale().y))
         input_boxes[(2, 2)].setText(str(node.getScale().z))
+
+        # Clear existing widgets in the ScriptInspector
+        for i in reversed(range(inspector.scroll_layout.count())):
+            widget = inspector.scroll_layout.itemAt(i).widget()
+            if widget:
+                widget.setParent(None)
+
+        # Load scripts associated with the node
+        if node in inspector.scripts:
+            for path, script_instance in inspector.scripts[node].items():
+                inspector.set_script(path, node)
+        else:
+            inspector.scripts[node] = {}  # Initialize script storage for the node
+    else:
+        print("No node selected.")
+
+        
 
 def new_tab(index):
     if index == 2:
@@ -184,6 +199,8 @@ class ScriptInspector(QWidget):
         self.scroll_area.setWidget(self.scroll_widget)
         self.layout.addWidget(self.scroll_area)  # Add the scroll area to the main layout
 
+        self.fpath = {}
+
         
         self.setAcceptDrops(True)
 
@@ -201,20 +218,29 @@ class ScriptInspector(QWidget):
             spec.loader.exec_module(script_module)
 
             if hasattr(script_module, "Script"):
+                # Check if the script is already associated with the node
+                    
+
                 script_instance = script_module.Script()
-                node.set_python_tag(path, script_instance)
+                self.scripts.setdefault(node, {})[path] = script_instance
+                node.set_python_tag("scripts", self.scripts[node])
 
                 # Create a new group box for the script
                 script_box = self.create_script_box(path, script_instance)
-                self.scripts[path] = script_box
                 self.scroll_layout.addWidget(script_box)  # Add to the scrollable layout
-
-                # Set the current script instance
                 self.current_script_instance = script_instance
-
+                print(f"Script loaded successfully: {path}")
         except Exception as e:
             print(f"Error loading script from {path}: {e}")
 
+    def clear_inspector(self):
+        """
+        Clears all widgets from the scroll layout.
+        """
+        while self.scroll_layout.count():
+            child = self.scroll_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
     def create_script_box(self, path, script_instance):
         """
         Create a QGroupBox for the script with its properties, including drag-and-drop support for object references.
@@ -293,8 +319,11 @@ class ScriptInspector(QWidget):
             for url in event.mimeData().urls():
                 file_path = url.toLocalFile()
                 if file_path.endswith('.py'):  # Ensure it's a Python script
-                    self.set_script(file_path, selected_node)  # Call set_script to load it
-                    print("dropped: ", file_path)
+                    if selected_node:
+                        self.set_script(file_path, selected_node)
+                        print(f"Script {file_path} dropped onto {selected_node.getName()}")
+                    else:
+                        print("No selected node to attach the script.")
                 else:
                     print(f"Ignored non-Python file: {file_path}")
             event.accept()
@@ -521,14 +550,6 @@ if __name__ == "__main__":
     node = DummyNode("Cube")
 
     inspector = ScriptInspector(left_panel)
-    inspector.set_script("./example.py", world.panda)
-    inspector.set_script("./example.py", node)
-    inspector.set_script("./example.py", node)
-    inspector.set_script("./example.py", node)
-    inspector.set_script("./example.py", node)
-    inspector.set_script("./example.py", node)
-    inspector.set_script("./example.py", node)
-    inspector.set_script("./example.py", node)
     inspector.show()
     viewport_splitter.addWidget(left_panel)
 

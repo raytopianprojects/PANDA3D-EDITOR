@@ -1,4 +1,7 @@
 from panda3d.core import NodePath
 
 class Script():
-    node = NodePath("Root")
+    def __init__(self):
+        self.node = NodePath("Root")
+        self.rotation_h = 0
+        self.node.setH(self.rotation_h)
