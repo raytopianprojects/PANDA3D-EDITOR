@@ -95,7 +95,6 @@ void main() {
     def hide_nodes(self):
         self.node.show()
         for c in render.get_children():
-            print(c, type(c.node()))
             if c.node() != self.node.node() and type(c.node()) not in (AmbientLight, DirectionalLight, PointLight,
                                                                        Spotlight, Camera) and c.name not in (
             "threeaxisgrid"

@@ -43,7 +43,7 @@ class Panda3DWorld(ShowBase):
 
         loadPrcFileData("", "win-size {} {}".format(width, height))
 
-        if (is_fullscreen):
+        if is_fullscreen:
             loadPrcFileData("", "fullscreen #t")
         else:
             loadPrcFileData("", "window-type offscreen")  # Set Panda to draw its main window in an offscreen buffer
