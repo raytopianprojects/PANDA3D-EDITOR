@@ -202,10 +202,60 @@ class ScriptInspector(QWidget):
         self.fpath = {}
 
         
+        self.add_script = QPushButton("add script")
+        self.layout.addWidget(self.add_script)
+
         self.setAcceptDrops(True)
 
         # Signal connections
         self.apply_button.clicked.connect(self.apply_changes)
+        self.add_script.clicked.connect(self.show_list)
+
+    def show_list(self):
+        """
+        Display a dialog with a list of .py files in a folder and allow removal of selected files.
+        """
+        folder_path = "./"  # Replace with the desired folder path
+        py_files = [f for f in os.listdir(folder_path) if f in ["terrain_editor.py"]]
+
+        # Create a dialog to display the files
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Python Files")
+        dialog.resize(400, 300)
+
+        # Dialog layout
+        dialog_layout = QVBoxLayout(dialog)
+
+        # List widget to display files
+        file_list = QListWidget(dialog)
+        file_list.addItems(py_files)
+        dialog_layout.addWidget(file_list)
+
+        # Remove button
+        remove_button = QPushButton("Remove Selected", dialog)
+        dialog_layout.addWidget(remove_button)
+
+        # Close button
+        close_button = QPushButton("Close", dialog)
+        dialog_layout.addWidget(close_button)
+
+        # Define remove action
+        def remove_selected():
+            selected_items = file_list.selectedItems()
+            for item in selected_items:
+                file_name = item.text()
+                file_path = os.path.join(folder_path, file_name)
+                print(f"Selected file path: {file_path}")  # Debug print
+                if selected_node:
+                    inspector.set_script(file_path, node)
+
+
+        # Connect buttons to actions
+        remove_button.clicked.connect(remove_selected)
+        close_button.clicked.connect(dialog.accept)
+
+        # Show the dialog
+        dialog.exec_()
 
     def set_script(self, path, node):
         """
@@ -257,7 +307,7 @@ class ScriptInspector(QWidget):
         image_label = QLabel()
         image_label.setMaximumWidth(20)
         image_label.setMaximumHeight(20)
-        pixmap = QPixmap("Grass.png")  # Replace with the path to your image file
+        pixmap = QPixmap("python_img.png")  # Replace with the path to your image file
         if not pixmap.isNull():
             pixmap = pixmap.scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             image_label.setPixmap(pixmap)
