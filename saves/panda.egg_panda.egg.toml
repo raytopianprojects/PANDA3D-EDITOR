@@ -1,0 +1,20 @@
+id = "panda.egg"
+name = "panda.egg"
+
+[transform.position]
+x = 0.0
+y = 0.0
+z = 0.0
+
+[transform.rotation]
+h = 0.0
+p = 0.0
+r = 0.0
+
+[transform.scale]
+x = 1.0
+y = 1.0
+z = 1.0
+
+[properties.script_properties]
+rotation_h = "50000"

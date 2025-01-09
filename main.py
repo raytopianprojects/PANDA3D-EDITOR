@@ -18,6 +18,7 @@ from file_explorer import FileExplorer
 import terrainEditor
 import importlib
 import os
+import entity_editor
 
 
 class PandaTest(Panda3DWorld):
@@ -216,7 +217,7 @@ class ScriptInspector(QWidget):
         Display a dialog with a list of .py files in a folder and allow removal of selected files.
         """
         folder_path = "./"  # Replace with the desired folder path
-        py_files = [f for f in os.listdir(folder_path) if f in ["terrain_editor.py"]]
+        py_files = [f for f in os.listdir(folder_path) if f in [""]]
 
         # Create a dialog to display the files
         dialog = QDialog(self)
@@ -232,15 +233,15 @@ class ScriptInspector(QWidget):
         dialog_layout.addWidget(file_list)
 
         # Remove button
-        remove_button = QPushButton("Remove Selected", dialog)
-        dialog_layout.addWidget(remove_button)
+        add_button = QPushButton("add Selected", dialog)
+        dialog_layout.addWidget(add_button)
 
         # Close button
         close_button = QPushButton("Close", dialog)
         dialog_layout.addWidget(close_button)
 
         # Define remove action
-        def remove_selected():
+        def add_selected():
             selected_items = file_list.selectedItems()
             for item in selected_items:
                 file_name = item.text()
@@ -251,7 +252,7 @@ class ScriptInspector(QWidget):
 
 
         # Connect buttons to actions
-        remove_button.clicked.connect(remove_selected)
+        add_button.clicked.connect(add_selected)
         close_button.clicked.connect(dialog.accept)
 
         # Show the dialog
@@ -274,9 +275,12 @@ class ScriptInspector(QWidget):
                 script_instance = script_module.Script()
                 self.scripts.setdefault(node, {})[path] = script_instance
                 node.set_python_tag("scripts", self.scripts[node])
+                data = node.get_python_tag("script_properties") or {os.path.splitext(os.path.basename(path))[0]}
+                node.set_python_tag("script_properties", data)
+                node.set_python_tag("id", node.get_name())
 
                 # Create a new group box for the script
-                script_box = self.create_script_box(path, script_instance)
+                script_box = self.create_script_box(path, script_instance, node)
                 self.scroll_layout.addWidget(script_box)  # Add to the scrollable layout
                 self.current_script_instance = script_instance
                 print(f"Script loaded successfully: {path}")
@@ -291,7 +295,7 @@ class ScriptInspector(QWidget):
             child = self.scroll_layout.takeAt(0)
             if child.widget():
                 child.widget().deleteLater()
-    def create_script_box(self, path, script_instance):
+    def create_script_box(self, path, script_instance, nodepath):
         """
         Create a QGroupBox for the script with its properties, including drag-and-drop support for object references.
         """
@@ -334,6 +338,8 @@ class ScriptInspector(QWidget):
                 label = Label(f"{attr}: {value.getName()}")
                 label.setMaximumHeight(max_height)
                 script_layout.addWidget(label)
+                # Connect textChanged signal to update NodePath tag
+                label.objectNameChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath))
             elif isinstance(value, Texture):  # Handle Texture type
                 # Create a horizontal layout for texture details
                 horizontal_layout = QHBoxLayout()
@@ -341,12 +347,16 @@ class ScriptInspector(QWidget):
                 # Convert Panda3D's Filename to a string path and load into QPixmap
                 texture_path = Filename(value.get_name()).to_os_specific()
                 pixmap = QPixmap(texture_path)
-                texture_label = Label(None)
+                texture_label = Label(f"Texture: {value.get_name()}")
                 texture_label.setMaximumHeight(100)
                 if not pixmap.isNull():
                     texture_label.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio))
                 else:
                     texture_label.setText("Image not found")
+
+                # Connect textChanged signal to update NodePath tag
+                texture_label.objectNameChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath))
+
 
                 horizontal_layout.addWidget(texture_label)
 
@@ -368,6 +378,11 @@ class ScriptInspector(QWidget):
                 input_field.setObjectName(attr)
                 input_field.setMaximumHeight(max_height)  # Set maximum height
                 script_layout.addWidget(input_field)
+            
+                # Connect textChanged signal to update NodePath tag
+                input_field.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath))
+
+
 
         # Set layout properties for spacing
         script_layout.setSpacing(spacing)
@@ -379,7 +394,11 @@ class ScriptInspector(QWidget):
 
         return script_box
 
-
+    def update(self, attr, value, node1):
+        attribute = node1.get_python_tag("script_properties") or {}
+        attribute[attr] = value
+        node1.set_python_tag("script_properties", attribute)
+        
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():  # Check for valid URLs
             event.accept()
@@ -416,25 +435,8 @@ class ScriptInspector(QWidget):
         """
         Apply changes made in the inspector to the script instances.
         """
-        for path, script_box in self.scripts.items():
-            for i in range(script_box.layout().count()):
-                widget = script_box.layout().itemAt(i).widget()
-                if isinstance(widget, QLineEdit):
-                    attr_name = widget.objectName()
-                    new_value = widget.text()
-
-                    try:
-                        script_instance = self.scripts[path].script_instance
-                        old_value = getattr(script_instance, attr_name)
-                        if isinstance(old_value, int):
-                            new_value = int(new_value)
-                        elif isinstance(old_value, float):
-                            new_value = float(new_value)
-                        setattr(script_instance, attr_name, new_value)
-                    except ValueError:
-                        print(f"Invalid value for {attr_name} in script {path}.")
-                    except Exception as e:
-                        print(f"Error applying changes to {attr_name}: {e}")
+        ee = entity_editor.Save()
+        ee.save_scene_to_toml(world.render, "./saves/")
 
 class Label(QLabel):
     def __init__(self, parent):
