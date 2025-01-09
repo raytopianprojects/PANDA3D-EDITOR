@@ -19,6 +19,8 @@ import terrainEditor
 import importlib
 import os
 import entity_editor
+import node_system
+from PyQt5.QtCore import pyqtSignal
 
 
 class PandaTest(Panda3DWorld):
@@ -339,7 +341,8 @@ class ScriptInspector(QWidget):
                 label.setMaximumHeight(max_height)
                 script_layout.addWidget(label)
                 # Connect textChanged signal to update NodePath tag
-                label.objectNameChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath))
+                label.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
+
             elif isinstance(value, Texture):  # Handle Texture type
                 # Create a horizontal layout for texture details
                 horizontal_layout = QHBoxLayout()
@@ -355,7 +358,8 @@ class ScriptInspector(QWidget):
                     texture_label.setText("Image not found")
 
                 # Connect textChanged signal to update NodePath tag
-                texture_label.objectNameChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath))
+                texture_label.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
+
 
 
                 horizontal_layout.addWidget(texture_label)
@@ -380,7 +384,8 @@ class ScriptInspector(QWidget):
                 script_layout.addWidget(input_field)
             
                 # Connect textChanged signal to update NodePath tag
-                input_field.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath))
+                input_field.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
+
 
 
 
@@ -394,10 +399,31 @@ class ScriptInspector(QWidget):
 
         return script_box
 
-    def update(self, attr, value, node1):
-        attribute = node1.get_python_tag("script_properties") or {}
-        attribute[attr] = value
-        node1.set_python_tag("script_properties", attribute)
+    def update(self, attr, value, node1, script_name):
+        """
+        Update the script properties of the NodePath.
+        """
+        # Retrieve or initialize the script_properties dictionary
+        script_properties = node1.get_python_tag("script_properties")
+
+        # Ensure script_properties is a dictionary
+        if not isinstance(script_properties, dict):
+            print(f"script_properties is not a dict: {type(script_properties)}. Reinitializing.")
+            script_properties = {}
+
+        # Ensure script_name exists as a key with a dictionary as its value
+        if script_name not in script_properties:
+            script_properties[script_name] = {}
+
+        # Update the attribute value in the script properties
+        script_properties[script_name][attr] = value
+
+        # Save the updated dictionary back to the node
+        node1.set_python_tag("script_properties", script_properties)
+
+        print(f"Updated script_properties for {node1.get_name()} - {script_name}: {script_properties}")
+
+
         
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():  # Check for valid URLs
@@ -439,11 +465,17 @@ class ScriptInspector(QWidget):
         ee.save_scene_to_toml(world.render, "./saves/")
 
 class Label(QLabel):
+    textChanged = pyqtSignal(str)
     def __init__(self, parent):
         super(Label, self).__init__(parent)
         self.setAcceptDrops(True)
         self.setText("None")
         self.setStyleSheet("QGroupBox { background-color: gray; border: 2px solid white; border-radius: 10px;}")
+    
+    
+    def settText(self, text):
+
+        self.textChanged.emit(text)  # Emit custom signal
 
     def dragEnterEvent(self, event):
         mime = event.mimeData()
@@ -454,6 +486,8 @@ class Label(QLabel):
 
     def dropEvent(self, event):
         mime = event.mimeData()
+
+        
     
         if mime.hasUrls():  # Handle file drops, including image files
             urls = mime.urls()
@@ -465,6 +499,7 @@ class Label(QLabel):
                         # Display the image
                         self.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio))
                         print(f"Image loaded successfully: {file_path}")
+                        self.settText(mime.text())
                     else:
                         print(f"Failed to load image: {file_path}")
                         self.setText("Invalid Image")
@@ -476,6 +511,7 @@ class Label(QLabel):
     
         elif mime.hasText():  # Handle plain text drops
             self.setText(mime.text())
+            self.settText(mime.text())
             print(f"Text dropped: {mime.text()}")
             event.accept()
     
@@ -489,7 +525,11 @@ class Label(QLabel):
                     role, value = stream.readInt(), stream.readQVariant()
                     if role == Qt.DisplayRole:
                         textList.append(value)
+            
             self.setText(', '.join(textList))
+            
+            self.settText(', '.join(textList))
+            
             print(f"Internal data dropped: {', '.join(textList)}")
             event.accept()
     

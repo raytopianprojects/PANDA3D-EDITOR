@@ -30,7 +30,7 @@ class Save():
                 # Get custom properties
                 properties = {}
                 for key in tags:
-                    if key not in ("id", "pos", "hpr", "scale", "scripts", "script_parameters"):  # Exclude transform tags
+                    if key not in ("id", "pos", "hpr", "scale", "scripts"):  # Exclude transform tags
                         properties[key] = node.get_python_tag(key)
 
                 # Create a dictionary to store entity data
