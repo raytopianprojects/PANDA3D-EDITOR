@@ -81,12 +81,36 @@ class PandaTest(Panda3DWorld):
         self.roll_seq.start()
 
     def make_terrain(self):
+        global hierarchy_tree
+        
         self.terrain_generate = terrainEditor.TerrainPainterApp(world, pandaWidget)
+
+        hierarchy_tree.clear()
+        
+        populate_hierarchy(hierarchy_tree, render)
+
         selected_node = self.terrain_generate.terrain_node
+    def reset_render(self):
+        """
+        Resets the render node to a new NodePath.
+        """
+        global render  # Make the new NodePath the global render
+        old_render = render
+
+        # Create a new root node
+        render = NodePath("render")
+        base.render = render  # Update ShowBase's render reference
+
+        # Reparent global elements like the camera
+        base.camera.reparent_to(render)
+
+        # Detach the old render node (optional)
+        old_render.detach_node()
 
 
 
 def populate_hierarchy(hierarchy_widget, node, parent_item=None):
+    
     # Create a new item for the current node
     item = QTreeWidgetItem(parent_item or hierarchy_widget, [node.getName()])
     item.setData(0, Qt.UserRole, node)  # Store the NodePath in the item data
@@ -547,8 +571,8 @@ def save_file():
     print("Save file triggered")
 
 def load_project():
-    print("Custom action triggered")
-
+    file = QFileDialog.getOpenFileName(None, "Select Project Directory", "", ".toml")
+    
 def close(): #TODO when saving is introduced make a window pop up with save option(save don't save and don't exist(canel))
     """closing the editor"""
     exit()
@@ -562,6 +586,8 @@ def gen_terrain():
 
 
 #-------------------
+
+
 
 if __name__ == "__main__":
     world = PandaTest()
@@ -626,7 +652,7 @@ if __name__ == "__main__":
     # Node Editor Tab
     node_editor_tab = QWidget()
     node_editor_layout = QVBoxLayout(node_editor_tab)
-    node_editor = NodeEditor()
+    node_editor = node_system.MainWindow()
     node_editor_layout.addWidget(node_editor)
     tab_widget.addTab(node_editor_tab, "Node Editor")
 

@@ -160,38 +160,52 @@ class TerrainPainterApp(DirectObject):
         return new_brush_image
 
     def on_mouse_click(self, Task):
-        # Get mouse position in normalized coordinates
+        # Ensure mouse is within bounds
+        if not base.mouseWatcherNode.hasMouse():
+            print("Mouse not detected.")
+            return Task.cont
+    
+        # Get normalized mouse position
         pMouse = base.mouseWatcherNode.getMouse()
+    
+        # Debug: Check mouse position
+        print(f"Normalized Mouse Position: {pMouse}")
+    
         # Get near and far points in camera space
         pFrom = Point3()
         pTo = Point3()
         base.camLens.extrude(pMouse, pFrom, pTo)
+    
         # Convert to world space
         pFrom = render.getRelativePoint(base.cam, pFrom)
         pTo = render.getRelativePoint(base.cam, pTo)
+    
+        # Debug: Check world space points
+        print(f"World Space Ray Start: {pFrom}, End: {pTo}")
+    
         # Update the ray's origin and direction
         self.mouse_ray.set_origin(pFrom)
-        self.mouse_ray.set_direction(pTo - pFrom)
-
+        self.mouse_ray.set_direction((pTo - pFrom).normalized())  # Normalize direction
+    
         self.collision_handler.clear_entries()
-        self.collision_traverser.traverse(base.render)
-
+        self.collision_traverser.traverse(render)
+    
+        # Check for collisions
         if self.collision_handler.get_num_entries() > 0:
             self.collision_handler.sort_entries()
             entry = self.collision_handler.get_entry(0)
-            hit_pos = entry.get_surface_point(base.render)
+            hit_pos = entry.get_surface_point(render)
             print(f"Collision detected at: {hit_pos}")
             self.paint_on_terrain(hit_pos)
         else:
             print("No collision detected.")
-
+    
         if not self.height >= self.max_height:
             self.height += 0.02
+    
+        return Task.cont if self.holding else Task.done
 
-        if self.holding:
-            return Task.cont
-        else:
-            return Task.done
+
 
     def adjust_brightness_pillow(self, brush_image_path, brightness_factor):
         # Open the brush image using Pillow

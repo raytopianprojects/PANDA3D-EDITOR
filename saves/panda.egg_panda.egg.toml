@@ -17,6 +17,6 @@ y = 1.0
 z = 1.0
 
 [properties.script_properties."D:/000PANDA3d-EDITOR/PANDA3D-EDITOR/script_inspector_example.py"]
-texture = "file:///D:/000PANDA3d-EDITOR/PANDA3D-EDITOR/Grass.png"
 node = "panda.egg"
 rotation_h = "50000"
+texture = "file:///D:/000PANDA3d-EDITOR/PANDA3D-EDITOR/Grass.png"
