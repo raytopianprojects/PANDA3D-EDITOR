@@ -21,6 +21,8 @@ import os
 import entity_editor
 import node_system
 from PyQt5.QtCore import pyqtSignal
+#import qdarktheme
+from qt_material import apply_stylesheet
 
 
 class PandaTest(Panda3DWorld):
@@ -85,7 +87,6 @@ class PandaTest(Panda3DWorld):
         selected_node = self.terrain_generate.terrain_node
 
 
-
 def populate_hierarchy(hierarchy_widget, node, parent_item=None):
     # Create a new item for the current node
     item = QTreeWidgetItem(parent_item or hierarchy_widget, [node.getName()])
@@ -97,9 +98,11 @@ def populate_hierarchy(hierarchy_widget, node, parent_item=None):
 
 selected_node = None
 
+
 class properties:
     def __init__():
         pass
+
     def update_node_property(self, coord):
         print(f"update_node_property called with coord: {coord}")
         if coord not in input_boxes:
@@ -125,6 +128,7 @@ class properties:
             scale = list(selected_node.getScale())
             scale[coord[1]] = value
             selected_node.setScale(*scale)
+
 
 def on_item_clicked(item, column):
     global selected_node
@@ -158,13 +162,15 @@ def on_item_clicked(item, column):
     else:
         print("No node selected.")
 
-        
 
 def new_tab(index):
     if index == 2:
         shader_editor.hide_nodes()
+        panda_widget_2.resizeEvent(panda_widget_2)
     else:
         shader_editor.show_nodes()
+        pandaWidget.resizeEvent(pandaWidget)
+
 
 class Node:
     def __init__(self, ref, path):
@@ -174,7 +180,6 @@ class Node:
     def update(self, path):
         if path not in self.paths:
             self.paths.append(path)
-
 
 
 class ScriptInspector(QWidget):
@@ -203,7 +208,6 @@ class ScriptInspector(QWidget):
         self.layout.addWidget(self.scroll_area)  # Add the scroll area to the main layout
 
         self.fpath = {}
-
         
         self.add_script = QPushButton("add script")
         self.layout.addWidget(self.add_script)
@@ -272,7 +276,6 @@ class ScriptInspector(QWidget):
 
             if hasattr(script_module, "Script"):
                 # Check if the script is already associated with the node
-                    
 
                 script_instance = script_module.Script()
                 self.scripts.setdefault(node, {})[path] = script_instance
@@ -298,6 +301,7 @@ class ScriptInspector(QWidget):
             if child.widget():
                 child.widget().deleteLater()
     def create_script_box(self, path, script_instance, nodepath):
+
         """
         Create a QGroupBox for the script with its properties, including drag-and-drop support for object references.
         """
@@ -328,12 +332,11 @@ class ScriptInspector(QWidget):
         script_name.setMaximumHeight(30)
         title_layout.addWidget(script_name)
 
-
         # Add properties as editable fields
         attributes = vars(script_instance)
         item_height = 30  # Desired height for input fields
-        max_height = 30   # Maximum height for input fields
-        spacing = 30      # Space between items
+        max_height = 30  # Maximum height for input fields
+        spacing = 30  # Space between items
 
         for attr, value in attributes.items():
             if isinstance(value, NodePath):  # Handle NodePath (object reference)
@@ -387,8 +390,6 @@ class ScriptInspector(QWidget):
                 input_field.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
 
 
-
-
         # Set layout properties for spacing
         script_layout.setSpacing(spacing)
 
@@ -423,8 +424,6 @@ class ScriptInspector(QWidget):
 
         print(f"Updated script_properties for {node1.get_name()} - {script_name}: {script_properties}")
 
-
-        
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():  # Check for valid URLs
             event.accept()
@@ -447,7 +446,6 @@ class ScriptInspector(QWidget):
         else:
             event.ignore()
 
-
     def get_node_by_name(self, name):
         """
         Retrieve a NodePath by name from the scene graph.
@@ -463,6 +461,7 @@ class ScriptInspector(QWidget):
         """
         ee = entity_editor.Save()
         ee.save_scene_to_toml(world.render, "./saves/")
+
 
 class Label(QLabel):
     textChanged = pyqtSignal(str)
@@ -487,8 +486,6 @@ class Label(QLabel):
     def dropEvent(self, event):
         mime = event.mimeData()
 
-        
-    
         if mime.hasUrls():  # Handle file drops, including image files
             urls = mime.urls()
             if urls:
@@ -508,13 +505,13 @@ class Label(QLabel):
                     print(f"Non-image file dropped: {file_path}")
                     self.setText(file_path)
             event.accept()
-    
+
         elif mime.hasText():  # Handle plain text drops
             self.setText(mime.text())
             self.settText(mime.text())
             print(f"Text dropped: {mime.text()}")
             event.accept()
-    
+
         elif mime.hasFormat('application/x-qabstractitemmodeldatalist'):  # Handle internal Qt data
             textList = []
             stream = QDataStream(mime.data('application/x-qabstractitemmodeldatalist'))
@@ -532,7 +529,7 @@ class Label(QLabel):
             
             print(f"Internal data dropped: {', '.join(textList)}")
             event.accept()
-    
+
         else:
             print("Unsupported drop data type")
             event.ignore()
@@ -542,22 +539,29 @@ class Label(QLabel):
 def new_project():
     print("Open file triggered")
 
+
 def save_file():
     world.messenger.send("save")
     print("Save file triggered")
 
+
 def load_project():
     print("Custom action triggered")
 
-def close(): #TODO when saving is introduced make a window pop up with save option(save don't save and don't exist(canel))
+
+def close():  #TODO when saving is introduced make a window pop up with save option(save don't save and don't exist(canel))
     """closing the editor"""
     exit()
+
+
 #-------------------
 #Terrain Generation
 terrain_generate = None
+
+
 def gen_terrain():
     global world
-    global terrain_generate 
+    global terrain_generate
     world.make_terrain()
 
 
@@ -572,24 +576,24 @@ if __name__ == "__main__":
     # Main Widget
     main_widget = QWidget()
     main_layout = QVBoxLayout(main_widget)  # Use vertical layout for tabs
-    
+
     # Create the toolbar
     toolbar = QToolBar("Main Toolbar")
     appw.addToolBar(toolbar)
-    
+
     # Create the menu
     edit_tool_type_menu = QMenu("Edit", appw)
     terrain_3d = QMenu("Terrain 3D", appw)
-    
+
     # Create an action for the Edit menu
     action = QAction("new project", appw)
     action.triggered.connect(new_project)
     edit_tool_type_menu.addAction(action)
-    
+
     action1 = QAction("save project", appw)
     action1.triggered.connect(save_file)
     edit_tool_type_menu.addAction(action1)
-    
+
     action2 = QAction("load project", appw)
     action2.triggered.connect(load_project)
     edit_tool_type_menu.addAction(action2)
@@ -646,6 +650,7 @@ if __name__ == "__main__":
     left_label = QLabel("Left Panel (Empty)")
     left_panel.layout().addWidget(left_label)
 
+
     # Example node and script
     class DummyNode:
         def __init__(self, name):
@@ -660,6 +665,7 @@ if __name__ == "__main__":
 
         def get_python_tag(self, key):
             return self.tags.get(key)
+
 
     node = DummyNode("Cube")
 
@@ -692,7 +698,7 @@ if __name__ == "__main__":
     grid_widget = QWidget()
     # Create a grid layout for the input boxes (3x3)
     grid_layout = QGridLayout(grid_widget)
-    
+
     # Create 3x3 QLineEdit input boxes
     input_boxes = {}
     for i in range(3):
@@ -707,9 +713,6 @@ if __name__ == "__main__":
             input_boxes[(i, j)] = input_box
             grid_layout.addWidget(label, i * 2, j)  # Add label in a separate row
             grid_layout.addWidget(input_box, i * 2 + 1, j)  # Add input box below the label
-
-
-
 
     # Add the grid widget to the main layout
     right_panel.layout().addWidget(grid_widget)
@@ -727,7 +730,8 @@ if __name__ == "__main__":
     viewport_splitter = QSplitter(Qt.Horizontal)
     viewport_layout.addWidget(viewport_splitter)
 
-    viewport_splitter.addWidget(QPanda3DWidget(world))
+    panda_widget_2 = QPanda3DWidget(world)
+    viewport_splitter.addWidget(panda_widget_2)
 
     shader_editor = ShaderEditor()
     viewport_splitter.addWidget(shader_editor)
@@ -747,7 +751,10 @@ if __name__ == "__main__":
     for coord, box in input_boxes.items():
         # Use a default argument to capture the value of `coord` correctly
         box.textChanged.connect(lambda box=box, coord=coord: prop.update_node_property(box, coord))
-    
+
+    # Set the background color of the widget to gray
+    #qdarktheme.setup_theme()
+    apply_stylesheet(appw, theme="light_cyan.xml")
 
     # Show the application window
     appw.show()
