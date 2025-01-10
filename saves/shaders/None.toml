@@ -1,0 +1,5 @@
+Vertex = "#version 150\n\n// Uniform inputs\nuniform mat4 p3d_ModelViewProjectionMatrix;\n\n// Vertex inputs\nin vec4 p3d_Vertex;\nin vec2 p3d_MultiTexCoord0;\n\n// Output to fragment shader\nout vec2 texcoord;\n\nvoid main() {\n  gl_Position = p3d_ModelViewProjectionMatrix * p3d_Vertex;\n  texcoord = p3d_MultiTexCoord0;\n}"
+Fragment = "#version 150\n\nuniform sampler2D p3d_Texture0;\n\n// Input from vertex shader\nin vec2 texcoord;\n\n// Output to the screen\nout vec4 p3d_FragColor;\n\nvoid main() {\n  vec4 color = texture(p3d_Texture0, texcoord);\n  p3d_FragColor = color;\n}"
+Geometry = ""
+"Tess Hull" = ""
+"Tess Domain" = ""
