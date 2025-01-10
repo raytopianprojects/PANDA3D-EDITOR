@@ -7,6 +7,7 @@ from direct.stdpy.file import open, isdir, isfile
 from copy import copy
 import io
 from contextlib import redirect_stdout
+import toml
 
 
 names = {"Vertex": ".vert", "Fragment": '.frag', "Geometry": ".geom", "Tess Hull": ".hull", "Tess Domain": ".dom"}
@@ -15,7 +16,7 @@ names = {"Vertex": ".vert", "Fragment": '.frag', "Geometry": ".geom", "Tess Hull
 class ShaderEditor(QWidget):
     def __init__(self):
         super().__init__()
-        self.name = None
+        self.name = "None"
         self.shaders: dict[str, QPlainTextEdit] = {}
         self.last_shaders = None
         self.do = DirectObject.DirectObject()
@@ -35,7 +36,6 @@ class ShaderEditor(QWidget):
         self.mesh_select.currentIndexChanged.connect(self.change_mesh)
         for m in self.meshes:
             self.mesh_select.addItem(m)
-
 
         self.tb = QTabWidget(self)
         self.viewport_splitter = QSplitter(Qt.Vertical)
@@ -88,8 +88,6 @@ void main() {
                      "Tess Domain": "", }.items():
             self.add_tab(x, y)
 
-
-
         self.apply_shaders()
 
     def hide_nodes(self):
@@ -126,23 +124,21 @@ void main() {
                         self.shaders[x].setPlainText(text)
                     except:
                         pass
-            else:
-                self.save()
-                return
 
     def save(self):
         if self.name:
-            if not isdir("shaders"):
-                os.mkdir("shaders")
+            if not os.path.exists("./saves/shaders/"):
+                os.makedirs("./saves/shaders/")
+            shaders = {}
             for x in ["Vertex", "Fragment", "Geometry", "Tess Hull", "Tess Domain"]:
-                _x = names[x]
-                text = self.shaders[x].toPlainText()
-                if text.strip():
-                    with open(f"shaders/{self.name}{_x}", "w") as f:
-                        try:
-                            f.write(text)
-                        except:
-                            pass
+                shaders[x] = self.shaders[x].toPlainText()
+
+            toml_string = toml.dumps(shaders)
+            print(toml_string)
+
+            file_path = os.path.join("./saves/shaders/", f"{self.name}.toml")
+            with open(file_path, "w") as file:
+                file.write(toml_string)
 
     def add_tab(self, name, default):
         t = QPlainTextEdit(self)

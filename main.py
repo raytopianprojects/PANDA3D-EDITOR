@@ -1,33 +1,28 @@
-from QPanda3D.Panda3DWorld import Panda3DWorld
-from QPanda3D.QPanda3DWidget import QPanda3DWidget
-from QPanda3D.Helpers.Env_Grid_Maker import *
-# import PyQt5 stuff
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+
+from QPanda3D.Panda3DWorld import Panda3DWorld
+from QPanda3D.QPanda3DWidget import QPanda3DWidget
+from QPanda3D.Helpers.Env_Grid_Maker import *
+
 import sys
 from panda3d.core import *
-from direct.interval.LerpInterval import LerpHprInterval
 from direct.interval.IntervalGlobal import *
-from direct.gui.OnscreenImage import OnscreenImage
-from direct.showbase.DirectObject import DirectObject
 from camera import FlyingCamera
 from node import NodeEditor
 from shader_editor import ShaderEditor
 from file_explorer import FileExplorer
 import terrainEditor
-import importlib
-import os
+from scirpt_inspector import ScriptInspector
 import entity_editor
-import node_system
-from PyQt5.QtCore import pyqtSignal
-#import qdarktheme
-from qt_material import apply_stylesheet
+import qdarktheme
 
 
 class PandaTest(Panda3DWorld):
     def __init__(self, width=1024, height=768):
         Panda3DWorld.__init__(self, width=width, height=height)
+        self.selected_node = None
         self.camera_controls = FlyingCamera(self)
         self.cam.setPos(0, -58, 30)
         self.cam.setHpr(0, -30, 0)
@@ -84,7 +79,7 @@ class PandaTest(Panda3DWorld):
 
     def make_terrain(self):
         self.terrain_generate = terrainEditor.TerrainPainterApp(world, pandaWidget)
-        selected_node = self.terrain_generate.terrain_node
+        self.selected_node = self.terrain_generate.terrain_node
 
 
 def populate_hierarchy(hierarchy_widget, node, parent_item=None):
@@ -96,11 +91,8 @@ def populate_hierarchy(hierarchy_widget, node, parent_item=None):
         populate_hierarchy(hierarchy_widget, child, item)
 
 
-selected_node = None
-
-
 class properties:
-    def __init__():
+    def __init__(self):
         pass
 
     def update_node_property(self, coord):
@@ -109,7 +101,7 @@ class properties:
             print(f"Error: {coord} not found in input_boxes. Current keys: {list(input_boxes.keys())}")
             return
         value = float(input_boxes[coord].text())
-        if not selected_node:
+        if not world.selected_node:
             return
         try:
             value = float(input_boxes[coord].text())
@@ -117,25 +109,24 @@ class properties:
             return  # Ignore invalid inputs
 
         if coord[0] == 0:  # Translation
-            pos = list(selected_node.getPos())
+            pos = list(world.selected_node.getPos())
             pos[coord[1]] = value
-            selected_node.setPos(*pos)
+            world.selected_node.setPos(*pos)
         elif coord[0] == 1:  # Rotation
-            hpr = list(selected_node.getHpr())
+            hpr = list(world.selected_node.getHpr())
             hpr[coord[1]] = value
-            selected_node.setHpr(*hpr)
+            world.selected_node.setHpr(*hpr)
         elif coord[0] == 2:  # Scale
-            scale = list(selected_node.getScale())
+            scale = list(world.selected_node.getScale())
             scale[coord[1]] = value
-            selected_node.setScale(*scale)
+            world.selected_node.setScale(*scale)
 
 
 def on_item_clicked(item, column):
-    global selected_node
     node = item.data(0, Qt.UserRole)  # Retrieve the NodePath stored in the item
 
     if node:
-        selected_node = node
+        world.selected_node = node
         # Update input boxes with node's properties
         input_boxes[(0, 0)].setText(str(node.getX()))
         input_boxes[(0, 1)].setText(str(node.getY()))
@@ -180,359 +171,6 @@ class Node:
     def update(self, path):
         if path not in self.paths:
             self.paths.append(path)
-
-
-class ScriptInspector(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Script Inspector")
-        self.resize(500, 700)
-
-        self.parent = parent
-
-        # Main layout
-        self.layout = QVBoxLayout(self)
-        self.apply_button = QPushButton("Apply Changes")
-        self.layout.addWidget(self.apply_button)
-
-        # Data storage
-        self.scripts = {}  # Stores scripts with their group boxes
-        self.current_script_instance = None
-
-        # Scrollable area setup
-        self.scroll_area = QScrollArea(self)
-        self.scroll_area.setWidgetResizable(True)  # Allow the scroll area to resize its content
-        self.scroll_widget = QWidget()  # Create a widget to hold all the script boxes
-        self.scroll_layout = QVBoxLayout(self.scroll_widget)
-        self.scroll_area.setWidget(self.scroll_widget)
-        self.layout.addWidget(self.scroll_area)  # Add the scroll area to the main layout
-
-        self.fpath = {}
-        
-        self.add_script = QPushButton("add script")
-        self.layout.addWidget(self.add_script)
-
-        self.setAcceptDrops(True)
-
-        # Signal connections
-        self.apply_button.clicked.connect(self.apply_changes)
-        self.add_script.clicked.connect(self.show_list)
-
-    def show_list(self):
-        """
-        Display a dialog with a list of .py files in a folder and allow removal of selected files.
-        """
-        folder_path = "./"  # Replace with the desired folder path
-        py_files = [f for f in os.listdir(folder_path) if f in [""]]
-
-        # Create a dialog to display the files
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Python Files")
-        dialog.resize(400, 300)
-
-        # Dialog layout
-        dialog_layout = QVBoxLayout(dialog)
-
-        # List widget to display files
-        file_list = QListWidget(dialog)
-        file_list.addItems(py_files)
-        dialog_layout.addWidget(file_list)
-
-        # Remove button
-        add_button = QPushButton("add Selected", dialog)
-        dialog_layout.addWidget(add_button)
-
-        # Close button
-        close_button = QPushButton("Close", dialog)
-        dialog_layout.addWidget(close_button)
-
-        # Define remove action
-        def add_selected():
-            selected_items = file_list.selectedItems()
-            for item in selected_items:
-                file_name = item.text()
-                file_path = os.path.join(folder_path, file_name)
-                print(f"Selected file path: {file_path}")  # Debug print
-                if selected_node:
-                    inspector.set_script(file_path, node)
-
-
-        # Connect buttons to actions
-        add_button.clicked.connect(add_selected)
-        close_button.clicked.connect(dialog.accept)
-
-        # Show the dialog
-        dialog.exec_()
-
-    def set_script(self, path, node):
-        """
-        Load a script, create an instance, and display its properties in a new box.
-        """
-        try:
-            # Load and execute the script
-            spec = importlib.util.spec_from_file_location("script", path)
-            script_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(script_module)
-
-            if hasattr(script_module, "Script"):
-                # Check if the script is already associated with the node
-
-                script_instance = script_module.Script()
-                self.scripts.setdefault(node, {})[path] = script_instance
-                node.set_python_tag("scripts", self.scripts[node])
-                data = node.get_python_tag("script_properties") or {os.path.splitext(os.path.basename(path))[0]}
-                node.set_python_tag("script_properties", data)
-                node.set_python_tag("id", node.get_name())
-
-                # Create a new group box for the script
-                script_box = self.create_script_box(path, script_instance, node)
-                self.scroll_layout.addWidget(script_box)  # Add to the scrollable layout
-                self.current_script_instance = script_instance
-                print(f"Script loaded successfully: {path}")
-        except Exception as e:
-            print(f"Error loading script from {path}: {e}")
-
-    def clear_inspector(self):
-        """
-        Clears all widgets from the scroll layout.
-        """
-        while self.scroll_layout.count():
-            child = self.scroll_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
-    def create_script_box(self, path, script_instance, nodepath):
-
-        """
-        Create a QGroupBox for the script with its properties, including drag-and-drop support for object references.
-        """
-        script_box = QGroupBox()
-        script_box.setStyleSheet("QGroupBox { background-color: gray; border: 1px solid black; border-radius: 20px; }")
-
-        script_layout = QVBoxLayout()
-
-        # Horizontal layout for script label and image
-        title_layout = QHBoxLayout()
-
-        # Add small 10x10 image near the script label
-        image_label = QLabel()
-        image_label.setMaximumWidth(20)
-        image_label.setMaximumHeight(20)
-        pixmap = QPixmap("python_img.png")  # Replace with the path to your image file
-        if not pixmap.isNull():
-            pixmap = pixmap.scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            image_label.setPixmap(pixmap)
-        else:
-            image_label.setText("No Image")  # Fallback if image can't be loaded
-
-        script_layout.addLayout(title_layout)
-        title_layout.addWidget(image_label)
-
-        # Label for script name
-        script_name = QLabel(f"Script: {os.path.splitext(os.path.basename(path))[0]}")
-        script_name.setMaximumHeight(30)
-        title_layout.addWidget(script_name)
-
-        # Add properties as editable fields
-        attributes = vars(script_instance)
-        item_height = 30  # Desired height for input fields
-        max_height = 30  # Maximum height for input fields
-        spacing = 30  # Space between items
-
-        for attr, value in attributes.items():
-            if isinstance(value, NodePath):  # Handle NodePath (object reference)
-                label = Label(f"{attr}: {value.getName()}")
-                label.setMaximumHeight(max_height)
-                script_layout.addWidget(label)
-                # Connect textChanged signal to update NodePath tag
-                label.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
-
-            elif isinstance(value, Texture):  # Handle Texture type
-                # Create a horizontal layout for texture details
-                horizontal_layout = QHBoxLayout()
-
-                # Convert Panda3D's Filename to a string path and load into QPixmap
-                texture_path = Filename(value.get_name()).to_os_specific()
-                pixmap = QPixmap(texture_path)
-                texture_label = Label(f"Texture: {value.get_name()}")
-                texture_label.setMaximumHeight(100)
-                if not pixmap.isNull():
-                    texture_label.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio))
-                else:
-                    texture_label.setText("Image not found")
-
-                # Connect textChanged signal to update NodePath tag
-                texture_label.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
-
-
-
-                horizontal_layout.addWidget(texture_label)
-
-                # Add a label for the texture name
-                name_label = Label(f"Texture: {value.get_name()}")
-                name_label.setMaximumHeight(max_height)
-                horizontal_layout.addWidget(name_label)
-
-                # Container for horizontal layout
-                container_widget = QWidget()
-                container_widget.setMaximumHeight(110)
-                container_widget.setLayout(horizontal_layout)
-
-                # Add container to the script layout
-                script_layout.addWidget(container_widget)
-            else:
-                # Regular input fields
-                input_field = QLineEdit(str(value))
-                input_field.setObjectName(attr)
-                input_field.setMaximumHeight(max_height)  # Set maximum height
-                script_layout.addWidget(input_field)
-            
-                # Connect textChanged signal to update NodePath tag
-                input_field.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
-
-
-        # Set layout properties for spacing
-        script_layout.setSpacing(spacing)
-
-        # Calculate the height based on the number of items
-        num_items = len(attributes)
-        total_height = (num_items * item_height) + ((num_items - 1) * spacing)
-        script_box.setLayout(script_layout)
-
-        return script_box
-
-    def update(self, attr, value, node1, script_name):
-        """
-        Update the script properties of the NodePath.
-        """
-        # Retrieve or initialize the script_properties dictionary
-        script_properties = node1.get_python_tag("script_properties")
-
-        # Ensure script_properties is a dictionary
-        if not isinstance(script_properties, dict):
-            print(f"script_properties is not a dict: {type(script_properties)}. Reinitializing.")
-            script_properties = {}
-
-        # Ensure script_name exists as a key with a dictionary as its value
-        if script_name not in script_properties:
-            script_properties[script_name] = {}
-
-        # Update the attribute value in the script properties
-        script_properties[script_name][attr] = value
-
-        # Save the updated dictionary back to the node
-        node1.set_python_tag("script_properties", script_properties)
-
-        print(f"Updated script_properties for {node1.get_name()} - {script_name}: {script_properties}")
-
-    def dragEnterEvent(self, event):
-        if event.mimeData().hasUrls():  # Check for valid URLs
-            event.accept()
-        else:
-            event.ignore()
-
-    def dropEvent(self, event):
-        if event.mimeData().hasUrls():
-            for url in event.mimeData().urls():
-                file_path = url.toLocalFile()
-                if file_path.endswith('.py'):  # Ensure it's a Python script
-                    if selected_node:
-                        self.set_script(file_path, selected_node)
-                        print(f"Script {file_path} dropped onto {selected_node.getName()}")
-                    else:
-                        print("No selected node to attach the script.")
-                else:
-                    print(f"Ignored non-Python file: {file_path}")
-            event.accept()
-        else:
-            event.ignore()
-
-    def get_node_by_name(self, name):
-        """
-        Retrieve a NodePath by name from the scene graph.
-        """
-        for node in render.find_all_matches("**"):  # Search in the scene graph
-            if node.get_name() == name:
-                return node
-        return None
-
-    def apply_changes(self):
-        """
-        Apply changes made in the inspector to the script instances.
-        """
-        ee = entity_editor.Save()
-        ee.save_scene_to_toml(world.render, "./saves/")
-
-
-class Label(QLabel):
-    textChanged = pyqtSignal(str)
-    def __init__(self, parent):
-        super(Label, self).__init__(parent)
-        self.setAcceptDrops(True)
-        self.setText("None")
-        self.setStyleSheet("QGroupBox { background-color: gray; border: 2px solid white; border-radius: 10px;}")
-    
-    
-    def settText(self, text):
-
-        self.textChanged.emit(text)  # Emit custom signal
-
-    def dragEnterEvent(self, event):
-        mime = event.mimeData()
-        if mime.hasText() or mime.hasFormat('application/x-qabstractitemmodeldatalist'):
-            event.accept()
-        else:
-            event.ignore()
-
-    def dropEvent(self, event):
-        mime = event.mimeData()
-
-        if mime.hasUrls():  # Handle file drops, including image files
-            urls = mime.urls()
-            if urls:
-                file_path = urls[0].toLocalFile()  # Convert URL to a local file path
-                if file_path.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):  # Check for image formats
-                    pixmap = QPixmap(file_path)
-                    if not pixmap.isNull():
-                        # Display the image
-                        self.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio))
-                        print(f"Image loaded successfully: {file_path}")
-                        self.settText(mime.text())
-                    else:
-                        print(f"Failed to load image: {file_path}")
-                        self.setText("Invalid Image")
-                else:
-                    # If not an image, treat as a general file path
-                    print(f"Non-image file dropped: {file_path}")
-                    self.setText(file_path)
-            event.accept()
-
-        elif mime.hasText():  # Handle plain text drops
-            self.setText(mime.text())
-            self.settText(mime.text())
-            print(f"Text dropped: {mime.text()}")
-            event.accept()
-
-        elif mime.hasFormat('application/x-qabstractitemmodeldatalist'):  # Handle internal Qt data
-            textList = []
-            stream = QDataStream(mime.data('application/x-qabstractitemmodeldatalist'))
-            while not stream.atEnd():
-                row = stream.readInt()
-                col = stream.readInt()
-                for dataSize in range(stream.readInt()):
-                    role, value = stream.readInt(), stream.readQVariant()
-                    if role == Qt.DisplayRole:
-                        textList.append(value)
-            
-            self.setText(', '.join(textList))
-            
-            self.settText(', '.join(textList))
-            
-            print(f"Internal data dropped: {', '.join(textList)}")
-            event.accept()
-
-        else:
-            print("Unsupported drop data type")
-            event.ignore()
 
 
 #Toolbar functions
@@ -582,23 +220,24 @@ if __name__ == "__main__":
     appw.addToolBar(toolbar)
 
     # Create the menu
-    edit_tool_type_menu = QMenu("Edit", appw)
+    edit_tool_type_menu = QMenu("File", appw)
     terrain_3d = QMenu("Terrain 3D", appw)
 
     # Create an action for the Edit menu
-    action = QAction("new project", appw)
+    action = QAction("New Project", appw)
     action.triggered.connect(new_project)
     edit_tool_type_menu.addAction(action)
 
-    action1 = QAction("save project", appw)
+    action1 = QAction("Save Project", appw)
     action1.triggered.connect(save_file)
+    action1.setShortcut(QKeySequence("Ctrl+S"))
     edit_tool_type_menu.addAction(action1)
 
-    action2 = QAction("load project", appw)
+    action2 = QAction("Load Project", appw)
     action2.triggered.connect(load_project)
     edit_tool_type_menu.addAction(action2)
 
-    action3 = QAction("exit", appw)
+    action3 = QAction("Exit", appw)
     action3.triggered.connect(exit)
     edit_tool_type_menu.addAction(action3)
 
@@ -611,7 +250,7 @@ if __name__ == "__main__":
 
     # Create a tool button for the menu
     tool_button = QToolButton()
-    tool_button.setText("Edit")
+    tool_button.setText("File")
     tool_button.setMenu(edit_tool_type_menu)
     tool_button.setPopupMode(QToolButton.InstantPopup)
     toolbar.addWidget(tool_button)
@@ -644,12 +283,8 @@ if __name__ == "__main__":
 
     # Empty Left Panel
     left_panel = QWidget()
-    left_panel.setLayout(QVBoxLayout())
-    input_box = QLineEdit()
-    left_panel.layout().addWidget(input_box)
-    left_label = QLabel("Left Panel (Empty)")
-    left_panel.layout().addWidget(left_label)
-
+    left_panel_layout = QVBoxLayout()
+    left_panel.setLayout(left_panel_layout)
 
     # Example node and script
     class DummyNode:
@@ -669,8 +304,9 @@ if __name__ == "__main__":
 
     node = DummyNode("Cube")
 
-    inspector = ScriptInspector(left_panel)
-    inspector.show()
+    inspector = ScriptInspector(world, entity_editor, node, left_panel)
+    #inspector.show()
+    left_panel_layout.addWidget(inspector)
     viewport_splitter.addWidget(left_panel)
 
     # Splitter for 3D Viewport and File System
@@ -753,8 +389,8 @@ if __name__ == "__main__":
         box.textChanged.connect(lambda box=box, coord=coord: prop.update_node_property(box, coord))
 
     # Set the background color of the widget to gray
-    #qdarktheme.setup_theme()
-    apply_stylesheet(appw, theme="light_cyan.xml")
+    qdarktheme.setup_theme()
+    #apply_stylesheet(appw, theme="light_blue.xml")
 
     # Show the application window
     appw.show()
