@@ -190,12 +190,12 @@ class ScriptInspector(QWidget):
                 # Convert Panda3D's Filename to a string path and load into QPixmap
                 texture_path = Filename(value.get_name()).to_os_specific()
                 pixmap = QPixmap(texture_path)
-                texture_label = Label(f"Texture:", str(value.get_name()))
+                texture_label = Label(f"Texture: {value.get_name()}", str(value.get_name()))
                 texture_label.setMaximumHeight(100)
                 if not pixmap.isNull():
-                    texture_label.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio))
+                    texture_label.value.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio))
                 else:
-                    texture_label.setText("Image not found")
+                    texture_label.value.setText("Image not found")
 
                 # Connect textChanged signal to update NodePath tag
                 texture_label.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
@@ -203,9 +203,9 @@ class ScriptInspector(QWidget):
                 horizontal_layout.addWidget(texture_label)
 
                 # Add a label for the texture name
-                name_label = Label(f"Texture:", str(value.get_name()))
-                name_label.setMaximumHeight(max_height)
-                horizontal_layout.addWidget(name_label)
+                # name_label = Label(f"Texture:", str(value.get_name()))
+                # name_label.setMaximumHeight(max_height)
+                # horizontal_layout.addWidget(name_label)
 
                 # Container for horizontal layout
                 container_widget = QWidget()
@@ -307,7 +307,9 @@ class Label(QWidget):
         self.setLayout(self.hbox)
 
         self.attr = QLabel(attr)
+        self.attr.setMinimumHeight(20)
         self.value = QLabel(value)
+        self.value.setMinimumHeight(20)
 
         self.hbox.addWidget(self.attr)
         self.hbox.addWidget(self.value)
@@ -332,10 +334,11 @@ class Label(QWidget):
                 if file_path.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):  # Check for image formats
                     pixmap = QPixmap(file_path)
                     if not pixmap.isNull():
+                        self.attr.setText(f"Texture: {urls[0].fileName()}" )
                         # Display the image
-                        self.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio))
+                        self.value.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio))
                         print(f"Image loaded successfully: {file_path}")
-                        self.value.settText(mime.text())
+                        #self.value.settText(mime.text())
                     else:
                         print(f"Failed to load image: {file_path}")
                         self.value.setText("Invalid Image")

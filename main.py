@@ -194,7 +194,6 @@ def on_item_clicked(item, column):
     else:
         print("No node selected.")
 
-        
 
 def new_tab(index):
     if index == 2:
