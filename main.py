@@ -21,6 +21,8 @@ import os
 import entity_editor
 import node_system
 from PyQt5.QtCore import pyqtSignal
+import scirpt_inspector
+import qdarktheme
 
 
 class PandaTest(Panda3DWorld):
@@ -41,6 +43,8 @@ class PandaTest(Panda3DWorld):
         self.grid = self.grid_maker.create()
         self.grid.reparentTo(render)
         self.grid.setLightOff()  # THE GRID SHOULD NOT BE LIT
+        
+        self.selected_node = None
 
         # Now create some lights to apply to everything in the scene.
 
@@ -119,7 +123,6 @@ def populate_hierarchy(hierarchy_widget, node, parent_item=None):
         populate_hierarchy(hierarchy_widget, child, item)
 
 
-selected_node = None
 
 class properties:
     def __init__():
@@ -130,7 +133,7 @@ class properties:
             print(f"Error: {coord} not found in input_boxes. Current keys: {list(input_boxes.keys())}")
             return
         value = float(input_boxes[coord].text())
-        if not selected_node:
+        if not world.selected_node:
             return
         try:
             value = float(input_boxes[coord].text())
@@ -138,24 +141,24 @@ class properties:
             return  # Ignore invalid inputs
 
         if coord[0] == 0:  # Translation
-            pos = list(selected_node.getPos())
+            pos = list(world.selected_node.getPos())
             pos[coord[1]] = value
-            selected_node.setPos(*pos)
+            world.selected_node.setPos(*pos)
         elif coord[0] == 1:  # Rotation
-            hpr = list(selected_node.getHpr())
+            hpr = list(world.selected_node.getHpr())
             hpr[coord[1]] = value
-            selected_node.setHpr(*hpr)
+            world.selected_node.setHpr(*hpr)
         elif coord[0] == 2:  # Scale
-            scale = list(selected_node.getScale())
+            scale = list(world.selected_node.getScale())
             scale[coord[1]] = value
-            selected_node.setScale(*scale)
+            world.selected_node.setScale(*scale)
 
 def on_item_clicked(item, column):
-    global selected_node
+    #global selected_node
     node = item.data(0, Qt.UserRole)  # Retrieve the NodePath stored in the item
 
     if node:
-        selected_node = node
+        world.selected_node = node
         # Update input boxes with node's properties
         input_boxes[(0, 0)].setText(str(node.getX()))
         input_boxes[(0, 1)].setText(str(node.getY()))
@@ -332,7 +335,7 @@ if __name__ == "__main__":
 
     node = DummyNode("Cube")
 
-    inspector = ScriptInspector(world, entity_editor, node, left_panel)
+    inspector = scirpt_inspector.ScriptInspector(world, entity_editor, node, left_panel)
     #inspector.show()
     left_panel_layout.addWidget(inspector)
     viewport_splitter.addWidget(left_panel)
