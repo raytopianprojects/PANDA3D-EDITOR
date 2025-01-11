@@ -21,6 +21,7 @@ import os
 import entity_editor
 import node_system
 from PyQt5.QtCore import pyqtSignal
+from scirpt_inspector import ScriptInspector
 import scirpt_inspector
 import qdarktheme
 
@@ -86,6 +87,14 @@ class PandaTest(Panda3DWorld):
 
     def make_terrain(self):
         global hierarchy_tree
+
+        self.terrain_generate = terrainEditor.TerrainPainterApp(world, pandaWidget)
+
+        hierarchy_tree.clear()
+
+        populate_hierarchy(hierarchy_tree, render)
+
+        world.selected_node = self.terrain_generate.terrain_node
         
         self.terrain_generate = terrainEditor.TerrainPainterApp(world, pandaWidget)
 
@@ -215,7 +224,6 @@ def save_file():
 
 def load_project():
     file = QFileDialog.getOpenFileName(None, "Select Project Directory", "", ".toml")
-
     
     
 def close(): #TODO when saving is introduced make a window pop up with save option(save don't save and don't exist(canel))
@@ -316,6 +324,7 @@ if __name__ == "__main__":
     left_panel = QWidget()
     left_panel_layout = QVBoxLayout()
     left_panel.setLayout(left_panel_layout)
+
 
     # Example node and script
     class DummyNode:
