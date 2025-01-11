@@ -199,8 +199,10 @@ def on_item_clicked(item, column):
 def new_tab(index):
     if index == 2:
         shader_editor.hide_nodes()
+        panda_widget_2.resizeEvent(panda_widget_2)
     else:
         shader_editor.show_nodes()
+        pandaWidget.resizeEvent(pandaWidget)
 
 class Node:
     def __init__(self, ref, path):
