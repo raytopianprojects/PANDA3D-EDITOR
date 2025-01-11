@@ -22,6 +22,7 @@ import entity_editor
 import node_system
 from PyQt5.QtCore import pyqtSignal
 from scirpt_inspector import ScriptInspector
+import scirpt_inspector
 import qdarktheme
 
 
@@ -43,6 +44,8 @@ class PandaTest(Panda3DWorld):
         self.grid = self.grid_maker.create()
         self.grid.reparentTo(render)
         self.grid.setLightOff()  # THE GRID SHOULD NOT BE LIT
+        
+        self.selected_node = None
 
         # Now create some lights to apply to everything in the scene.
 
@@ -92,7 +95,14 @@ class PandaTest(Panda3DWorld):
         populate_hierarchy(hierarchy_tree, render)
 
         world.selected_node = self.terrain_generate.terrain_node
+        
+        self.terrain_generate = terrainEditor.TerrainPainterApp(world, pandaWidget)
 
+        hierarchy_tree.clear()
+        
+        populate_hierarchy(hierarchy_tree, render)
+
+        selected_node = self.terrain_generate.terrain_node
     def reset_render(self):
         """
         Resets the render node to a new NodePath.
@@ -111,7 +121,9 @@ class PandaTest(Panda3DWorld):
         old_render.detach_node()
 
 
+
 def populate_hierarchy(hierarchy_widget, node, parent_item=None):
+    
     # Create a new item for the current node
     item = QTreeWidgetItem(parent_item or hierarchy_widget, [node.getName()])
     item.setData(0, Qt.UserRole, node)  # Store the NodePath in the item data
@@ -120,10 +132,10 @@ def populate_hierarchy(hierarchy_widget, node, parent_item=None):
         populate_hierarchy(hierarchy_widget, child, item)
 
 
-class properties:
-    def __init__(self):
-        pass
 
+class properties:
+    def __init__():
+        pass
     def update_node_property(self, coord):
         print(f"update_node_property called with coord: {coord}")
         if coord not in input_boxes:
@@ -150,8 +162,8 @@ class properties:
             scale[coord[1]] = value
             world.selected_node.setScale(*scale)
 
-
 def on_item_clicked(item, column):
+    #global selected_node
     node = item.data(0, Qt.UserRole)  # Retrieve the NodePath stored in the item
 
     if node:
@@ -182,15 +194,13 @@ def on_item_clicked(item, column):
     else:
         print("No node selected.")
 
+        
 
 def new_tab(index):
     if index == 2:
         shader_editor.hide_nodes()
-        panda_widget_2.resizeEvent(panda_widget_2)
     else:
         shader_editor.show_nodes()
-        pandaWidget.resizeEvent(pandaWidget)
-
 
 class Node:
     def __init__(self, ref, path):
@@ -214,9 +224,9 @@ def save_file():
 
 def load_project():
     file = QFileDialog.getOpenFileName(None, "Select Project Directory", "", ".toml")
-
-
-def close():  #TODO when saving is introduced make a window pop up with save option(save don't save and don't exist(canel))
+    
+    
+def close(): #TODO when saving is introduced make a window pop up with save option(save don't save and don't exist(canel))
     """closing the editor"""
     exit()
 
@@ -334,7 +344,7 @@ if __name__ == "__main__":
 
     node = DummyNode("Cube")
 
-    inspector = ScriptInspector(world, entity_editor, node, left_panel)
+    inspector = scirpt_inspector.ScriptInspector(world, entity_editor, node, left_panel)
     #inspector.show()
     left_panel_layout.addWidget(inspector)
     viewport_splitter.addWidget(left_panel)
