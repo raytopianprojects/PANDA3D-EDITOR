@@ -35,8 +35,9 @@ class Save():
 
                 # Create a dictionary to store entity data
                 entity_data = {
-                    "id": entity_id,
+                    "type": "script",
                     "name": node.get_name(),
+                    "id": entity_id,
                     "transform": {
                         "position": {"x": position.x, "y": position.y, "z": position.z},
                         "rotation": {"h": rotation.x, "p": rotation.y, "r": rotation.z},

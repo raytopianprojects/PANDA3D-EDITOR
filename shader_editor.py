@@ -16,7 +16,7 @@ names = {"Vertex": ".vert", "Fragment": '.frag', "Geometry": ".geom", "Tess Hull
 class ShaderEditor(QWidget):
     def __init__(self):
         super().__init__()
-        self.name = "None"
+        self.name = None
         self.shaders: dict[str, QPlainTextEdit] = {}
         self.last_shaders = None
         self.do = DirectObject.DirectObject()
@@ -113,7 +113,6 @@ void main() {
 
         value, ok = QInputDialog().getText(self, "Shader Name", "Shader Name:")
         self.name = value
-        messenger.send("name", sentArgs=[value])
 
         for x in ["Vertex", "Fragment", "Geometry", "Tess Hull", "Tess Domain"]:
             _x = names[x]
@@ -126,15 +125,19 @@ void main() {
                         pass
 
     def save(self):
+        if not self.name:
+            value, ok = QInputDialog().getText(self, "Shader Name", "Shader Name:")
+            self.name = value
+
         if self.name:
             if not os.path.exists("./saves/shaders/"):
                 os.makedirs("./saves/shaders/")
-            shaders = {}
+
+            shaders = {"type": "shader"}
             for x in ["Vertex", "Fragment", "Geometry", "Tess Hull", "Tess Domain"]:
-                shaders[x] = self.shaders[x].toPlainText()
+                shaders[x.lower().replace(" ", "_")] = self.shaders[x].toPlainText()
 
             toml_string = toml.dumps(shaders)
-            print(toml_string)
 
             file_path = os.path.join("./saves/shaders/", f"{self.name}.toml")
             with open(file_path, "w") as file:
