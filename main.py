@@ -12,7 +12,7 @@ from direct.interval.IntervalGlobal import *
 from direct.gui.OnscreenImage import OnscreenImage
 from direct.showbase.DirectObject import DirectObject
 from camera import FlyingCamera
-from node import NodeEditor
+import node
 from shader_editor import ShaderEditor
 from file_explorer import FileExplorer
 import terrainEditor
@@ -308,7 +308,7 @@ if __name__ == "__main__":
     # Node Editor Tab
     node_editor_tab = QWidget()
     node_editor_layout = QVBoxLayout(node_editor_tab)
-    node_editor = NodeEditor()
+    node_editor = node.MainWindow()
     node_editor_layout.addWidget(node_editor)
     tab_widget.addTab(node_editor_tab, "Node Editor")
 
