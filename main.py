@@ -1,28 +1,33 @@
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
-
 from QPanda3D.Panda3DWorld import Panda3DWorld
 from QPanda3D.QPanda3DWidget import QPanda3DWidget
 from QPanda3D.Helpers.Env_Grid_Maker import *
-
+# import PyQt5 stuff
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 import sys
 from panda3d.core import *
+from direct.interval.LerpInterval import LerpHprInterval
 from direct.interval.IntervalGlobal import *
+from direct.gui.OnscreenImage import OnscreenImage
+from direct.showbase.DirectObject import DirectObject
 from camera import FlyingCamera
 from node import NodeEditor
 from shader_editor import ShaderEditor
 from file_explorer import FileExplorer
 import terrainEditor
-from scirpt_inspector import ScriptInspector
+import importlib
+import os
 import entity_editor
+import node_system
+from PyQt5.QtCore import pyqtSignal
+from scirpt_inspector import ScriptInspector
 import qdarktheme
 
 
 class PandaTest(Panda3DWorld):
     def __init__(self, width=1024, height=768):
         Panda3DWorld.__init__(self, width=width, height=height)
-        self.selected_node = None
         self.camera_controls = FlyingCamera(self)
         self.cam.setPos(0, -58, 30)
         self.cam.setHpr(0, -30, 0)
@@ -78,8 +83,32 @@ class PandaTest(Panda3DWorld):
         self.roll_seq.start()
 
     def make_terrain(self):
+        global hierarchy_tree
+
         self.terrain_generate = terrainEditor.TerrainPainterApp(world, pandaWidget)
-        self.selected_node = self.terrain_generate.terrain_node
+
+        hierarchy_tree.clear()
+
+        populate_hierarchy(hierarchy_tree, render)
+
+        world.selected_node = self.terrain_generate.terrain_node
+
+    def reset_render(self):
+        """
+        Resets the render node to a new NodePath.
+        """
+        global render  # Make the new NodePath the global render
+        old_render = render
+
+        # Create a new root node
+        render = NodePath("render")
+        base.render = render  # Update ShowBase's render reference
+
+        # Reparent global elements like the camera
+        base.camera.reparent_to(render)
+
+        # Detach the old render node (optional)
+        old_render.detach_node()
 
 
 def populate_hierarchy(hierarchy_widget, node, parent_item=None):
@@ -184,7 +213,7 @@ def save_file():
 
 
 def load_project():
-    print("Custom action triggered")
+    file = QFileDialog.getOpenFileName(None, "Select Project Directory", "", ".toml")
 
 
 def close():  #TODO when saving is introduced make a window pop up with save option(save don't save and don't exist(canel))
@@ -285,6 +314,7 @@ if __name__ == "__main__":
     left_panel = QWidget()
     left_panel_layout = QVBoxLayout()
     left_panel.setLayout(left_panel_layout)
+
 
     # Example node and script
     class DummyNode:

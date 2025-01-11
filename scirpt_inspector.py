@@ -177,7 +177,7 @@ class ScriptInspector(QWidget):
 
         for attr, value in attributes.items():
             if isinstance(value, NodePath):  # Handle NodePath (object reference)
-                label = Label(f"{attr}: {value.getName()}")
+                label = Label(f"{attr}:", value.getName())
                 label.setMaximumHeight(max_height)
                 script_layout.addWidget(label)
                 # Connect textChanged signal to update NodePath tag
@@ -190,7 +190,7 @@ class ScriptInspector(QWidget):
                 # Convert Panda3D's Filename to a string path and load into QPixmap
                 texture_path = Filename(value.get_name()).to_os_specific()
                 pixmap = QPixmap(texture_path)
-                texture_label = Label(f"Texture: {value.get_name()}")
+                texture_label = Label(f"Texture:", str(value.get_name()))
                 texture_label.setMaximumHeight(100)
                 if not pixmap.isNull():
                     texture_label.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio))
@@ -203,7 +203,7 @@ class ScriptInspector(QWidget):
                 horizontal_layout.addWidget(texture_label)
 
                 # Add a label for the texture name
-                name_label = Label(f"Texture: {value.get_name()}")
+                name_label = Label(f"Texture:", str(value.get_name()))
                 name_label.setMaximumHeight(max_height)
                 horizontal_layout.addWidget(name_label)
 
@@ -297,14 +297,20 @@ class ScriptInspector(QWidget):
         ee.save_scene_to_toml(self.world.render, "./saves/")
 
 
-class Label(QLabel):
+class Label(QWidget):
     textChanged = pyqtSignal(str)
 
-    def __init__(self, parent):
+    def __init__(self, attr, value, parent=None):
         super(Label, self).__init__(parent)
         self.setAcceptDrops(True)
-        self.setText("None")
-        #self.setStyleSheet("QGroupBox { background-color: gray; border: 2px solid white; border-radius: 10px;}")
+        self.hbox = QHBoxLayout()
+        self.setLayout(self.hbox)
+
+        self.attr = QLabel(attr)
+        self.value = QLabel(value)
+
+        self.hbox.addWidget(self.attr)
+        self.hbox.addWidget(self.value)
 
     def settText(self, text):
         self.textChanged.emit(text)  # Emit custom signal
@@ -329,19 +335,19 @@ class Label(QLabel):
                         # Display the image
                         self.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio))
                         print(f"Image loaded successfully: {file_path}")
-                        self.settText(mime.text())
+                        self.value.settText(mime.text())
                     else:
                         print(f"Failed to load image: {file_path}")
-                        self.setText("Invalid Image")
+                        self.value.setText("Invalid Image")
                 else:
                     # If not an image, treat as a general file path
                     print(f"Non-image file dropped: {file_path}")
-                    self.setText(file_path)
+                    self.value.setText(file_path)
             event.accept()
 
         elif mime.hasText():  # Handle plain text drops
-            self.setText(mime.text())
-            self.settText(mime.text())
+            self.value.setText(mime.text())
+            self.value.settText(mime.text())
             print(f"Text dropped: {mime.text()}")
             event.accept()
 
@@ -356,9 +362,9 @@ class Label(QLabel):
                     if role == Qt.DisplayRole:
                         textList.append(value)
 
-            self.setText(', '.join(textList))
+            self.value.setText(', '.join(textList))
 
-            self.settText(', '.join(textList))
+            self.value.settText(', '.join(textList))
 
             print(f"Internal data dropped: {', '.join(textList)}")
             event.accept()
