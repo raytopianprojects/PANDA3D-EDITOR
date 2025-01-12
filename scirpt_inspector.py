@@ -350,7 +350,7 @@ class Label(QWidget):
 
         elif mime.hasText():  # Handle plain text drops
             self.value.setText(mime.text())
-            self.value.settText(mime.text())
+            self.settText(mime.text())
             print(f"Text dropped: {mime.text()}")
             event.accept()
 
@@ -367,7 +367,7 @@ class Label(QWidget):
 
             self.value.setText(', '.join(textList))
 
-            self.value.settText(', '.join(textList))
+            self.settText(', '.join(textList))
 
             print(f"Internal data dropped: {', '.join(textList)}")
             event.accept()

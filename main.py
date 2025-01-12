@@ -37,6 +37,7 @@ class PandaTest(Panda3DWorld):
         self.cam.node().getDisplayRegion(0).setSort(20)
         # Create a panda        
         self.panda = loader.loadModel("panda")
+        self.panda.set_python_tag("model_path", "panda")
         self.panda.reparentTo(render)
         self.panda.setPos(0, 0, 0)
 
@@ -72,7 +73,7 @@ class PandaTest(Panda3DWorld):
         self.jump_up = self.panda.posInterval(1.0, Point3(0, 0, 5), blendType="easeOut")
         self.jump_down = self.panda.posInterval(1.0, Point3(0, 0, 0), blendType="easeIn")
         self.jump_seq = Sequence(self.jump_up, self.jump_down)
-
+ 
         self.jump_up2 = self.panda.posInterval(1.0, Point3(10, 0, 15))
         self.jump_down2 = self.panda.posInterval(1.0, Point3(0, 0, 0))
         self.roll_left = self.panda.hprInterval(1.0, Point3(0, 0, 180))
@@ -222,9 +223,38 @@ def save_file():
     world.messenger.send("save")
     print("Save file triggered")
 
+import toml
 
-def load_project():
-    file = QFileDialog.getOpenFileName(None, "Select Project Directory", "", ".toml")
+def load_project(world):
+    """
+    Load a project and reset the scene.
+    """
+    # Prompt the user to select a TOML file
+    file_path, _ = QFileDialog.getOpenFileName(None, "Select Project File", "", "TOML Files (*.toml)")
+    
+    if not file_path:
+        print("No file selected.")
+        return
+
+    # Reset the current scene
+    world.reset_render()  # Ensure `world` is valid and has this method
+
+    # Parse the TOML file and reconstruct the scene
+    try:
+        with open(file_path, 'r') as file:
+            project_data = toml.load(file)
+
+        # Example: Debug print project data
+        print(f"Loaded Project Data: {project_data}")
+
+        # Construct the scene using project_data...
+        # Add logic here to build the scene
+    except Exception as e:
+        print(f"Error loading project: {e}")
+
+    # Iterate through entities
+
+
     
     
 def close(): #TODO when saving is introduced make a window pop up with save option(save don't save and don't exist(canel))
@@ -274,7 +304,7 @@ if __name__ == "__main__":
     edit_tool_type_menu.addAction(action1)
 
     action2 = QAction("Load Project", appw)
-    action2.triggered.connect(load_project)
+    action2.triggered.connect(lambda: load_project(world))
     edit_tool_type_menu.addAction(action2)
 
     action3 = QAction("Exit", appw)
