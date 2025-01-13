@@ -21,6 +21,7 @@ from QPanda3D.QPanda3D_Buttons_Translation import QPanda3D_Button_translation
 from QPanda3D.QPanda3D_Keys_Translation import QPanda3D_Key_translation
 from QPanda3D.QPanda3D_Modifiers_Translation import QPanda3D_Modifier_translation
 import builtins
+import os
 
 __all__ = ["QPanda3DWidget"]
 
@@ -132,6 +133,63 @@ class QPanda3DWidget(QWidget):
             self.synchronizer.start()
 
         self.debug = debug
+
+        self.setAcceptDrops(True)  # Enable drag-and-drop for this widget
+
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        """
+        Handle drag enter events to validate the data being dragged.
+        """
+        mime = event.mimeData()
+        if mime.hasUrls():  # Check if the dragged data contains URLs (files)
+            for url in mime.urls():
+                file_path = url.toLocalFile()
+                if file_path.endswith((".bam", ".egg", ".obj")):  # Supported file extensions
+                    event.accept()  # Accept the drag if it's a valid file
+                    return
+        event.ignore()
+
+    def dropEvent(self, event: QDropEvent):
+        """
+        Handle drop events to load the dropped file into the Panda3D world.
+        """
+        mime = event.mimeData()
+        if mime.hasUrls():  # Ensure the dropped data contains URLs (files)
+            for url in mime.urls():
+                file_path = url.toLocalFile()
+                if file_path.endswith((".bam", ".egg", ".obj")):
+                    print(f"Dropped file: {file_path}")
+                    self.add_model_to_world(file_path)
+            event.accept()
+        else:
+            event.ignore()
+
+    def add_model_to_world(self, file_path: str):
+        """
+        Add the dropped model to the Panda3D world.
+        """
+        normalized_path = file_path.replace("\\", "/")
+        directory = os.path.dirname(normalized_path)
+
+        # Check if file exists and attempt to load
+        if not os.path.exists(normalized_path):
+            print(f"Error: File does not exist: {normalized_path}")
+            return
+
+        
+        path = os.path.relpath(normalized_path)
+
+        # Reference self.panda3DWorld.render instead of the global render
+        print("NORMALIZED PATH", normalized_path)
+        model = self.panda3DWorld.loader.loadModel(path)
+        if model:
+            model.set_python_tag("model_path", normalized_path)
+            model.reparentTo(self.panda3DWorld.render)
+            self.panda3DWorld.add_model(model)
+            print(f"Model added to world: {normalized_path}")
+        
+
+
 
     def mousePressEvent(self, evt):
         button = evt.button()

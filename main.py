@@ -29,6 +29,7 @@ import qdarktheme
 class PandaTest(Panda3DWorld):
     def __init__(self, width=1024, height=768):
         Panda3DWorld.__init__(self, width=width, height=height)
+        self.loader = self.loader
         self.camera_controls = FlyingCamera(self)
         self.cam.setPos(0, -58, 30)
         self.cam.setHpr(0, -30, 0)
@@ -86,19 +87,23 @@ class PandaTest(Panda3DWorld):
     def roll(self):
         self.roll_seq.start()
 
+    def add_model(self, model):
+        global hierarchy_tree
+
+        hierarchy_tree.clear()
+        populate_hierarchy(hierarchy_tree, render)
+        world.selected_node = model
+
     def make_terrain(self):
         global hierarchy_tree
 
-        self.terrain_generate = terrainEditor.TerrainPainterApp(world, pandaWidget)
-
         hierarchy_tree.clear()
 
-        populate_hierarchy(hierarchy_tree, render)
 
         world.selected_node = self.terrain_generate.terrain_node
         
         self.terrain_generate = terrainEditor.TerrainPainterApp(world, pandaWidget)
-
+        
         hierarchy_tree.clear()
         
         populate_hierarchy(hierarchy_tree, render)
@@ -121,6 +126,17 @@ class PandaTest(Panda3DWorld):
         # Detach the old render node (optional)
         old_render.detach_node()
 
+        self.camera_controls = FlyingCamera(self)
+        self.cam.setPos(0, -58, 30)
+        self.cam.setHpr(0, -30, 0)
+        self.win.setClearColorActive(True)
+        self.win.setClearColor(VBase4(0, 0, 0, 1))
+        self.cam.node().getDisplayRegion(0).setSort(20)
+
+        hierarchy_tree.clear()
+        
+        populate_hierarchy(hierarchy_tree, render)
+#TODO make each object from toml load up with a function that runs on load
 
 
 def populate_hierarchy(hierarchy_widget, node, parent_item=None):
@@ -230,7 +246,7 @@ def load_project(world):
     Load a project and reset the scene.
     """
     # Prompt the user to select a TOML file
-    file_path, _ = QFileDialog.getOpenFileName(None, "Select Project File", "", "TOML Files (*.toml)")
+    file_path = QFileDialog.getExistingDirectory(None, "Select Project File", "")
     
     if not file_path:
         print("No file selected.")
@@ -241,11 +257,10 @@ def load_project(world):
 
     # Parse the TOML file and reconstruct the scene
     try:
-        with open(file_path, 'r') as file:
-            project_data = toml.load(file)
-
+        en = entity_editor
+        data = en.Load(world).load_project_from_folder_toml(file_path, world.render)
         # Example: Debug print project data
-        print(f"Loaded Project Data: {project_data}")
+        print(f"Loaded Project Data: {data}")
 
         # Construct the scene using project_data...
         # Add logic here to build the scene
