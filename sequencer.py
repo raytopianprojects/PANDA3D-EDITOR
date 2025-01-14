@@ -1,10 +1,21 @@
 import sys
-from PyQt5.QtWidgets import QGraphicsScene, QGraphicsView, QGraphicsItem, QGraphicsRectItem, QGraphicsEllipseItem, \
-    QApplication
-from PyQt5.QtGui import QBrush, QPen, QPainter, QColor
-from PyQt5.QtCore import Qt, QPointF
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
+from direct.interval.IntervalGlobal import *
+
 
 app = QApplication(sys.argv)
+
+class QProperity(QWidget):
+    def __init__(self, name, widget):
+        super().__init__()
+        self.l = QHBoxLayout()
+        self.setLayout(self.l)
+        self.name = QLabel(f"{name}:")
+        self.widget = widget
+        self.l.addWidget(self.name)
+        self.l.addWidget(self.widget)
 
 
 class SequenceView(QGraphicsView):
@@ -47,9 +58,91 @@ class SequenceView(QGraphicsView):
 class QInterval(QGraphicsItem):
     def __init__(self):
         super().__init__()
-        self.keys = []
-        self.type = None
-        self.other = {}
+
+class QLerp(QInterval):
+    i = LerpPosInterval(nodePath,
+                        duration,
+                        pos,
+                        startPos=None,
+                        other=None,
+                        blendType='noBlend',
+                        bakeInStart=1,
+                        fluid=0,
+                        name=None)
+    LerpPosInterval(nodePath, duration, pos, startPos)
+    LerpHprInterval(nodePath, duration, hpr, startHpr)
+    LerpQuatInterval(nodePath, duration, quat, startHpr, startQuat)
+    LerpScaleInterval(nodePath, duration, scale, startScale)
+    LerpShearInterval(nodePath, duration, shear, startShear)
+    LerpColorInterval(nodePath, duration, color, startColor)
+    LerpColorScaleInterval(nodePath, duration, colorScale, startColorScale)
+    LerpPosHprInterval(nodePath, duration, pos, hpr, startPos, startHpr)
+    LerpPosQuatInterval(nodePath, duration, pos, quat, startPos, startQuat)
+    LerpHprScaleInterval(nodePath, duration, hpr, scale, startHpr, startScale)
+    LerpQuatScaleInterval(nodePath, duration, quat, scale, startQuat, startScale)
+    LerpPosHprScaleInterval(nodePath, duration, pos, hpr, scale, startPos, startHpr, startScale)
+    LerpPosQuatScaleInterval(nodePath, duration, pos, quat, scale, startPos, startQuat, startScale)
+    LerpPosHprScaleShearInterval(nodePath, duration, pos, hpr, scale, shear, startPos, startHpr, startScale, startShear)
+    LerpPosQuatScaleShearInterval(nodePath, duration, pos, quat, scale, shear, startPos, startQuat, startScale,
+                                  startShear)
+    i = LerpFunc(myFunction,
+                 fromData=0,
+                 toData=1,
+                 duration=0.0,
+                 blendType='noBlend',
+                 extraArgs=[],
+                 name=None)
+    Func(myFunction, arg1, arg2)
+    actorInterval(
+        "Animation Name",
+        loop= < 0 or 1 >,
+    constrainedLoop = < 0 or 1 >,
+    duration = D,
+    startTime = T1,
+    endTime = T2,
+    startFrame = N1,
+    endFrame = N2,
+    playRate = R,
+    partName = PN,
+    lodName = LN,
+    )
+
+class QSound(QInterval):
+    def __init__(self, mySound, loop, myDuration, volume, myStartTime):
+        super().__init__()
+        self.mySound, self.loop, self.myDuration, self.volume, self.myStartTime = mySound, loop, myDuration, volume, myStartTime
+        self.i = SoundInterval(
+        mySound,
+        loop = loop,
+        duration = myDuration,
+        volume = self.volume,
+        startTime = myStartTime
+    )
+        self.l = QVBoxLayout()
+        self.w = QWidget()
+        self.w.setLayout(self.l)
+
+        self.l.addWidget(QProperity("Sound", QLabel("sound")))
+        self.l.addWidget(QProperity("Loop", QCheckBox()))
+        self.l.addWidget(QProperity("Duration", QDoubleSpinBox()))
+        self.l.addWidget(QProperity("Volume", QDoubleSpinBox()))
+        self.l.addWidget(QProperity("Start Time", QDoubleSpinBox()))
+
+    def play(self):
+        self.stop()
+        self.i = SoundInterval(
+            self.mySound,
+            loop=self.loop,
+            duration=self.myDuration,
+            volume=self.volume,
+            startTime=self.myStartTime
+        )
+        self.i.start()
+
+    def stop(self):
+        self.i.pause()
+        self.i = None
+
 
 
 class QSequence(QGraphicsItem):
@@ -64,6 +157,13 @@ class QParallel(QGraphicsItem):
         super().__init__()
         self.sequences = []
 
+class Marker():
+    ...
+
+class Buttons(QWidget):
+    def __init__(self):
+        self.hbox = QHorizontalBox()
+        self.layout.set(self.hbox)
 
 def itemChange(change, value):
     if change == QGraphicsItem.ItemPositionChange:
