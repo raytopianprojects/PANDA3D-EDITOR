@@ -1,7 +1,10 @@
-id = "8ab022ef"
-name = "render"
+name = "panda.egg"
+id = "7f9e6f30"
+entity_model = "panda"
+type = "script"
 
 [properties]
+model_path = "panda"
 script_properties = [ "script_inspector_example",]
 
 [transform.position]

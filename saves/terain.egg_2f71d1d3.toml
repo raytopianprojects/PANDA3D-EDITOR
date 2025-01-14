@@ -1,7 +1,10 @@
-id = "8fec17b0"
-name = "render"
+name = "terain.egg"
+id = "2f71d1d3"
+entity_model = "D:/000PANDA3d-EDITOR/PANDA3D-EDITOR/terain.egg"
+type = "script"
 
 [properties]
+model_path = "D:/000PANDA3d-EDITOR/PANDA3D-EDITOR/terain.egg"
 script_properties = [ "script_inspector_example",]
 
 [transform.position]

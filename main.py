@@ -12,7 +12,7 @@ from direct.interval.IntervalGlobal import *
 from direct.gui.OnscreenImage import OnscreenImage
 from direct.showbase.DirectObject import DirectObject
 from camera import FlyingCamera
-from node import NodeEditor
+import node
 from shader_editor import ShaderEditor
 from file_explorer import FileExplorer
 import terrainEditor
@@ -29,6 +29,7 @@ import qdarktheme
 class PandaTest(Panda3DWorld):
     def __init__(self, width=1024, height=768):
         Panda3DWorld.__init__(self, width=width, height=height)
+        self.loader = self.loader
         self.camera_controls = FlyingCamera(self)
         self.cam.setPos(0, -58, 30)
         self.cam.setHpr(0, -30, 0)
@@ -37,6 +38,7 @@ class PandaTest(Panda3DWorld):
         self.cam.node().getDisplayRegion(0).setSort(20)
         # Create a panda        
         self.panda = loader.loadModel("panda")
+        self.panda.set_python_tag("model_path", "panda")
         self.panda.reparentTo(render)
         self.panda.setPos(0, 0, 0)
 
@@ -72,7 +74,7 @@ class PandaTest(Panda3DWorld):
         self.jump_up = self.panda.posInterval(1.0, Point3(0, 0, 5), blendType="easeOut")
         self.jump_down = self.panda.posInterval(1.0, Point3(0, 0, 0), blendType="easeIn")
         self.jump_seq = Sequence(self.jump_up, self.jump_down)
-
+ 
         self.jump_up2 = self.panda.posInterval(1.0, Point3(10, 0, 15))
         self.jump_down2 = self.panda.posInterval(1.0, Point3(0, 0, 0))
         self.roll_left = self.panda.hprInterval(1.0, Point3(0, 0, 180))
@@ -85,19 +87,23 @@ class PandaTest(Panda3DWorld):
     def roll(self):
         self.roll_seq.start()
 
+    def add_model(self, model):
+        global hierarchy_tree
+
+        hierarchy_tree.clear()
+        populate_hierarchy(hierarchy_tree, render)
+        world.selected_node = model
+
     def make_terrain(self):
         global hierarchy_tree
 
-        self.terrain_generate = terrainEditor.TerrainPainterApp(world, pandaWidget)
-
         hierarchy_tree.clear()
 
-        populate_hierarchy(hierarchy_tree, render)
 
         world.selected_node = self.terrain_generate.terrain_node
         
         self.terrain_generate = terrainEditor.TerrainPainterApp(world, pandaWidget)
-
+        
         hierarchy_tree.clear()
         
         populate_hierarchy(hierarchy_tree, render)
@@ -120,6 +126,17 @@ class PandaTest(Panda3DWorld):
         # Detach the old render node (optional)
         old_render.detach_node()
 
+        self.camera_controls = FlyingCamera(self)
+        self.cam.setPos(0, -58, 30)
+        self.cam.setHpr(0, -30, 0)
+        self.win.setClearColorActive(True)
+        self.win.setClearColor(VBase4(0, 0, 0, 1))
+        self.cam.node().getDisplayRegion(0).setSort(20)
+
+        hierarchy_tree.clear()
+        
+        populate_hierarchy(hierarchy_tree, render)
+#TODO make each object from toml load up with a function that runs on load
 
 
 def populate_hierarchy(hierarchy_widget, node, parent_item=None):
@@ -222,9 +239,37 @@ def save_file():
     world.messenger.send("save")
     print("Save file triggered")
 
+import toml
 
-def load_project():
-    file = QFileDialog.getOpenFileName(None, "Select Project Directory", "", ".toml")
+def load_project(world):
+    """
+    Load a project and reset the scene.
+    """
+    # Prompt the user to select a TOML file
+    file_path = QFileDialog.getExistingDirectory(None, "Select Project File", "")
+    
+    if not file_path:
+        print("No file selected.")
+        return
+
+    # Reset the current scene
+    world.reset_render()  # Ensure `world` is valid and has this method
+
+    # Parse the TOML file and reconstruct the scene
+    try:
+        en = entity_editor
+        data = en.Load(world).load_project_from_folder_toml(file_path, world.render)
+        # Example: Debug print project data
+        print(f"Loaded Project Data: {data}")
+
+        # Construct the scene using project_data...
+        # Add logic here to build the scene
+    except Exception as e:
+        print(f"Error loading project: {e}")
+
+    # Iterate through entities
+
+
     
     
 def close(): #TODO when saving is introduced make a window pop up with save option(save don't save and don't exist(canel))
@@ -274,7 +319,7 @@ if __name__ == "__main__":
     edit_tool_type_menu.addAction(action1)
 
     action2 = QAction("Load Project", appw)
-    action2.triggered.connect(load_project)
+    action2.triggered.connect(lambda: load_project(world))
     edit_tool_type_menu.addAction(action2)
 
     action3 = QAction("Exit", appw)
@@ -309,7 +354,7 @@ if __name__ == "__main__":
     # Node Editor Tab
     node_editor_tab = QWidget()
     node_editor_layout = QVBoxLayout(node_editor_tab)
-    node_editor = NodeEditor()
+    node_editor = node.MainWindow()
     node_editor_layout.addWidget(node_editor)
     tab_widget.addTab(node_editor_tab, "Node Editor")
 
