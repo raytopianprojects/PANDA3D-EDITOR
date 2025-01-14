@@ -1,11 +1,11 @@
 name = "terain.egg"
-id = "2f71d1d3"
+id = "f920c99c"
 entity_model = "D:/000PANDA3d-EDITOR/PANDA3D-EDITOR/terain.egg"
 type = "script"
 
 [properties]
 model_path = "D:/000PANDA3d-EDITOR/PANDA3D-EDITOR/terain.egg"
-script_properties = [ "script_inspector_example",]
+type = "1"
 
 [transform.position]
 x = 0.0
@@ -21,3 +21,10 @@ r = 0.0
 x = 1.0
 y = 1.0
 z = 1.0
+
+[properties.script_paths]
+"D:/000PANDA3d-EDITOR/PANDA3D-EDITOR/script_inspector_example.py" = "<script.Script object at 0x130194D8>"
+
+[properties.script_properties."D:/000PANDA3d-EDITOR/PANDA3D-EDITOR/script_inspector_example.py"]
+rotation_h = "5000000"
+node = "panda.egg"

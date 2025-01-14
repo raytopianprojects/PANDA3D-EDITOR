@@ -27,8 +27,12 @@ import qdarktheme
 
 
 class PandaTest(Panda3DWorld):
-    def __init__(self, width=1024, height=768):
+    def __init__(self, width=1024, height=768, script_inspector=None):
         Panda3DWorld.__init__(self, width=width, height=height)
+        
+        
+        
+        self.script_inspector = script_inspector
         self.loader = self.loader
         self.camera_controls = FlyingCamera(self)
         self.cam.setPos(0, -58, 30)
@@ -80,6 +84,10 @@ class PandaTest(Panda3DWorld):
         self.roll_left = self.panda.hprInterval(1.0, Point3(0, 0, 180))
         self.roll_right = self.panda.hprInterval(1.0, Point3(0, 0, 0))
         self.roll_seq = Sequence(Parallel(self.jump_up2, self.roll_left), Parallel(self.jump_down2, self.roll_right))
+        
+    
+    def make_hierarchy(self):
+        self.hierarchy_tree = QTreeWidget()
 
     def jump(self):
         self.jump_seq.start()
@@ -88,25 +96,25 @@ class PandaTest(Panda3DWorld):
         self.roll_seq.start()
 
     def add_model(self, model):
-        global hierarchy_tree
 
-        hierarchy_tree.clear()
-        populate_hierarchy(hierarchy_tree, render)
+
+        self.hierarchy_tree.clear()
+        self.populate_hierarchy(self.hierarchy_tree, render)
         world.selected_node = model
 
     def make_terrain(self):
-        global hierarchy_tree
 
-        hierarchy_tree.clear()
+
+        self.hierarchy_tree.clear()
 
 
         world.selected_node = self.terrain_generate.terrain_node
         
         self.terrain_generate = terrainEditor.TerrainPainterApp(world, pandaWidget)
         
-        hierarchy_tree.clear()
+        self.hierarchy_tree.clear()
         
-        populate_hierarchy(hierarchy_tree, render)
+        self.populate_hierarchy(self.hierarchy_tree, render)
 
         selected_node = self.terrain_generate.terrain_node
     def reset_render(self):
@@ -133,20 +141,20 @@ class PandaTest(Panda3DWorld):
         self.win.setClearColor(VBase4(0, 0, 0, 1))
         self.cam.node().getDisplayRegion(0).setSort(20)
 
-        hierarchy_tree.clear()
+        self.hierarchy_tree.clear()
         
-        populate_hierarchy(hierarchy_tree, render)
-#TODO make each object from toml load up with a function that runs on load
+        self.populate_hierarchy(self.hierarchy_tree, render)
+    #TODO make each object from toml load up with a function that runs on load
 
 
-def populate_hierarchy(hierarchy_widget, node, parent_item=None):
-    
-    # Create a new item for the current node
-    item = QTreeWidgetItem(parent_item or hierarchy_widget, [node.getName()])
-    item.setData(0, Qt.UserRole, node)  # Store the NodePath in the item data
-    # Recursively add child nodes
-    for child in node.getChildren():
-        populate_hierarchy(hierarchy_widget, child, item)
+    def populate_hierarchy(self, hierarchy_widget, node, parent_item=None):
+
+        # Create a new item for the current node
+        item = QTreeWidgetItem(parent_item or hierarchy_widget, [node.getName()])
+        item.setData(0, Qt.UserRole, node)  # Store the NodePath in the item data
+        # Recursively add child nodes
+        for child in node.getChildren():
+            self.populate_hierarchy(hierarchy_widget, child, item)
 
 
 
@@ -254,11 +262,13 @@ def load_project(world):
 
     # Reset the current scene
     world.reset_render()  # Ensure `world` is valid and has this method
+    
 
     # Parse the TOML file and reconstruct the scene
     try:
         en = entity_editor
         data = en.Load(world).load_project_from_folder_toml(file_path, world.render)
+        
         # Example: Debug print project data
         print(f"Loaded Project Data: {data}")
 
@@ -387,10 +397,11 @@ if __name__ == "__main__":
         def get_python_tag(self, key):
             return self.tags.get(key)
 
+    inspector = scirpt_inspector.ScriptInspector(world, entity_editor, node, left_panel)
+    world.script_inspector = inspector
 
     node = DummyNode("Cube")
 
-    inspector = scirpt_inspector.ScriptInspector(world, entity_editor, node, left_panel)
     #inspector.show()
     left_panel_layout.addWidget(inspector)
     viewport_splitter.addWidget(left_panel)
@@ -411,11 +422,13 @@ if __name__ == "__main__":
     # Hierarchy Viewer (Right Panel)
     right_panel = QWidget()
     right_panel.setLayout(QVBoxLayout())
-    hierarchy_tree = QTreeWidget()
-    hierarchy_tree.setHeaderLabel("Scene Hierarchy")
-    hierarchy_tree.setDragEnabled(True)
-    hierarchy_tree.setAcceptDrops(True)
-    right_panel.layout().addWidget(hierarchy_tree)
+    
+    world.make_hierarchy()
+    
+    world.hierarchy_tree.setHeaderLabel("Scene Hierarchy")
+    world.hierarchy_tree.setDragEnabled(True)
+    world.hierarchy_tree.setAcceptDrops(True)
+    right_panel.layout().addWidget(world.hierarchy_tree)
     # Create a QWidget to hold the grid layout
     grid_widget = QWidget()
     # Create a grid layout for the input boxes (3x3)
@@ -465,9 +478,9 @@ if __name__ == "__main__":
     appw.setCentralWidget(main_widget)
 
     # Populate the hierarchy tree with actual scene data
-    populate_hierarchy(hierarchy_tree, render)  # This will populate the hierarchy panel
+    world.populate_hierarchy(world.hierarchy_tree, render)  # This will populate the hierarchy panel
 
-    hierarchy_tree.itemClicked.connect(lambda item, column: on_item_clicked(item, column))
+    world.hierarchy_tree.itemClicked.connect(lambda item, column: on_item_clicked(item, column))
 
     prop = properties
     for coord, box in input_boxes.items():
