@@ -27,4 +27,4 @@ z = 1.0
 
 [properties.script_properties."D:/000PANDA3d-EDITOR/PANDA3D-EDITOR/script_inspector_example.py"]
 rotation_h = "5000000"
-node = "panda.egg"
+node = "terain.egg"

@@ -213,9 +213,11 @@ def on_item_clicked(item, column):
         # Load scripts associated with the node
         if node in inspector.scripts:
             for path, script_instance in inspector.scripts[node].items():
-                inspector.set_script(path, node)
+                if inspector.prop:
+                    
+                    inspector.set_script(path, node, inspector.prop)
         else:
-            inspector.scripts[node] = {}  # Initialize script storage for the node
+            inspector.scripts = {}  # Initialize script storage for the node
     else:
         print("No node selected.")
 
