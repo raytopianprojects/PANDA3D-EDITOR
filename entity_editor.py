@@ -7,6 +7,8 @@ import os
 import toml
 from panda3d.core import NodePath  # Assuming NodePath is from panda3d.core
 
+import main
+
 class Load:
     def __init__(self, world):
         self.world = world
@@ -37,7 +39,7 @@ class Load:
                 name = entity_data.get("name", "Unnamed")
                 entity_id = entity_data.get("id", None)
                 model_path = entity_data.get("entity_model", "")
-                script_path = entity_data.get("type", "")  # Assuming 'type' refers to a script type or name
+                entity_type = entity_data.get("type", "")
 
                 transform = entity_data.get("transform", {})
                 properties = entity_data.get("properties", {})
@@ -59,22 +61,32 @@ class Load:
                 position = transform.get("position", {"x": 0, "y": 0, "z": 0})
                 rotation = transform.get("rotation", {"h": 0, "p": 0, "r": 0})
                 scale = transform.get("scale", {"x": 1, "y": 1, "z": 1})
+                parent = properties.get("parent", None)
                 entity_node.set_pos(position["x"], position["y"], position["z"])
                 entity_node.set_hpr(rotation["h"], rotation["p"], rotation["r"])
                 entity_node.set_scale(scale["x"], scale["y"], scale["z"])
+                script_paths = properties.get("script_paths", "")
+                s_property = properties.get("script_properties", "")
 
                 # Set properties
                 for key, value in properties.items():
                     entity_node.set_python_tag(key, value)
+                    self.world.populate_hierarchy(self.world.hierarchy_tree, entity_node, parent)
+                for s in script_paths:
+                    prop = {}
 
+                    for attr, value in s_property.items():
+                        prop[attr] = (value)
+                        print("iiii:", value)
+                        self.world.script_inspector.set_script(os.path.relpath(s), entity_node, prop)
+                    prop.clear()
                 # Append entity data to the list
                 entities.append({
                     "name": name,
                     "id": entity_id,
                     "transform": transform,
                     "properties": properties,
-                    "model": model_path,
-                    "script": script_path
+                    "model": model_path
                 })
 
                 print(f"Entity '{name}' with ID '{entity_id}' loaded.")
