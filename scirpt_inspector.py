@@ -101,6 +101,16 @@ class ScriptInspector(QWidget):
 
         # Show the dialog
         dialog.exec_()
+        
+    def recreate_property_box_for_node(self, node):
+        self.clear_inspector()
+        # Assuming node has an attribute or tag for scripts:
+        scripts = node.get_python_tag("scripts")  
+        # For each script, call set_script or directly create UI boxes
+        if scripts != None:
+            for script_path, script_instance in scripts.items():
+                script_box = self.create_script_box(script_path, script_instance, node, isLoadScript=False)
+                self.scroll_layout.addWidget(script_box)
 
     def set_script(self, path, node, prop=None):
         """
@@ -123,17 +133,18 @@ class ScriptInspector(QWidget):
                 node.set_python_tag("script_properties", data)
                 node.set_python_tag("id", str(uuid.uuid4())[:8])
                 if prop:
-                    self.prop = prop
+                    self.prop[node] = prop
                     # Create a new group box for the script
                     script_box = self.create_script_box(path, script_instance, node, True)
-                if self.prop:
-                    script_box = self.create_script_box(path, script_instance, node, True)
-                    
-                else:
+
+                elif not prop:
                     
 
                     # Create a new group box for the script
                     script_box = self.create_script_box(path, script_instance, node, False)
+                elif self.prop[node]:
+                    script_box = self.create_script_box(path, script_instance, node, True)
+
                 self.scroll_layout.addWidget(script_box)  # Add to the scrollable layout
                 self.current_script_instance = script_instance
                 print(f"Script loaded successfully: {path}")
@@ -188,6 +199,13 @@ class ScriptInspector(QWidget):
         spacing = 30  # Space between items
         if isLoadScript:
             for attr, value in attributes.items():
+                if attr == "INPUTS":
+                    for name, val in value.items():
+                        if name == "Text":
+                            input_field = QLineEdit(str(val))
+                            input_field.setObjectName(name)
+                            input_field.setMaximumHeight(max_height)  # Set maximum height
+                            script_layout.addWidget(input_field)
                 for v in self.prop.values():
                     for value1 in v.values():
                         if isinstance(value, NodePath):  # Handle NodePath (object reference)
@@ -271,6 +289,13 @@ class ScriptInspector(QWidget):
                             input_field.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
         else:
             for attr, value in attributes.items():
+                if attr == "INPUTS":
+                    for name, val in value.items():
+                        if name == "Text":
+                            input_field = QLineEdit(str(val))
+                            input_field.setObjectName(name)
+                            input_field.setMaximumHeight(max_height)  # Set maximum height
+                            script_layout.addWidget(input_field)
                 if isinstance(value, NodePath):  # Handle NodePath (object reference)
                     label = Label(f"{attr}:", value.getName())
                     label.setMaximumHeight(max_height)

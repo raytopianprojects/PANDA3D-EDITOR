@@ -7,8 +7,6 @@ import os
 import toml
 from panda3d.core import NodePath  # Assuming NodePath is from panda3d.core
 
-import main
-
 class Load:
     def __init__(self, world):
         self.world = world
