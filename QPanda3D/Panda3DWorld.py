@@ -11,11 +11,13 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
+
 # Panda imports
 from panda3d.core import *
 # from panda3d.core import loadPrcFileData
 # loadPrcFileData("", "window-type none") # Set Panda to draw its main window in an offscreen buffer
 from direct.showbase.DirectObject import DirectObject
+from direct.gui.DirectGui import *
 from panda3d.core import GraphicsOutput, Texture, ConfigVariableManager, WindowProperties
 
 # Set up Panda environment
@@ -84,6 +86,8 @@ class Panda3DWorld(ShowBase):
             self.buff.set_clear_active(GraphicsOutput.RTPColor, True)
 
         self.disableMouse()
+        
+        
 
     def set_parent(self, parent: QWidget):
         self.parent = parent
@@ -94,3 +98,4 @@ class Panda3DWorld(ShowBase):
             return float(self.parent.width()) / float(self.parent.height())
         else:
             return super().getAspectRatio(win)
+

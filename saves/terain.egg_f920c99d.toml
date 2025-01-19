@@ -1,5 +1,5 @@
 name = "terain.egg"
-id = "f920c99c"
+id = "f920c99cd"
 entity_model = "D:/000PANDA3d-EDITOR/PANDA3D-EDITOR/terain.egg"
 type = "script"
 
@@ -23,6 +23,6 @@ y = 1.0
 z = 1.0
 
 [properties.script_paths]
-"D:/000PANDA3d-EDITOR/PANDA3D-EDITOR/script_inspector_example.py" = "<script.Script object at 0x130194D8>"
+"D:/000PANDA3d-EDITOR/PANDA3D-EDITOR/enemy.py" = "<script.Script object at 0x130194D8>"
 
-[properties.script_properties."D:/000PANDA3d-EDITOR/PANDA3D-EDITOR/script_inspector_example.py"]
+[properties.script_properties."D:/000PANDA3d-EDITOR/PANDA3D-EDITOR/enemy.py"]

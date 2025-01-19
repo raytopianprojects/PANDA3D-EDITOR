@@ -11,6 +11,7 @@ from direct.interval.LerpInterval import LerpHprInterval
 from direct.interval.IntervalGlobal import *
 from direct.gui.OnscreenImage import OnscreenImage
 from direct.showbase.DirectObject import DirectObject
+import ui_editor
 from camera import FlyingCamera
 import node
 from shader_editor import ShaderEditor
@@ -24,12 +25,13 @@ from PyQt5.QtCore import pyqtSignal
 from scirpt_inspector import ScriptInspector
 import scirpt_inspector
 import qdarktheme
+from direct.gui.DirectGui import DirectButton, DirectLabel, DirectFrame
+from direct.gui import DirectGuiGlobals as DGG
 
 
 class PandaTest(Panda3DWorld):
     def __init__(self, width=1024, height=768, script_inspector=None):
         Panda3DWorld.__init__(self, width=width, height=height)
-
         self.script_inspector = script_inspector
         self.loader = self.loader
         self.camera_controls = FlyingCamera(self)
@@ -85,6 +87,7 @@ class PandaTest(Panda3DWorld):
 
     def make_hierarchy(self):
         self.hierarchy_tree = QTreeWidget()
+        self.hierarchy_tree1 = QTreeWidget()
 
     def jump(self):
         self.jump_seq.start()
@@ -95,20 +98,25 @@ class PandaTest(Panda3DWorld):
     def add_model(self, model):
         self.hierarchy_tree.clear()
         self.populate_hierarchy(self.hierarchy_tree, render)
+        self.hierarchy_tree1.clear()
+        self.populate_hierarchy(self.hierarchy_tree1, render)
         world.selected_node = model
 
     def make_terrain(self):
         self.hierarchy_tree.clear()
-
-        world.selected_node = self.terrain_generate.terrain_node
+        self.hierarchy_tree1.clear()
 
         self.terrain_generate = terrainEditor.TerrainPainterApp(world, pandaWidget)
 
-        self.hierarchy_tree.clear()
-
+        world.selected_node = self.terrain_generate.terrain_node
+        
         self.populate_hierarchy(self.hierarchy_tree, render)
+        self.populate_hierarchy(self.hierarchy_tree1, render)
 
         selected_node = self.terrain_generate.terrain_node
+
+    def ui_editor_script_to_canvas(self):
+        inspector.set_script(os.path.relpath("D:/000PANDA3d-EDITOR/PANDA3D-EDITOR/ui_editor_properties.py"), self.canvas, inspector.prop)
 
     def reset_render(self):
         """
@@ -136,8 +144,10 @@ class PandaTest(Panda3DWorld):
 
         self.hierarchy_tree.clear()
 
+        self.hierarchy_tree1.clear()
+        
         self.populate_hierarchy(self.hierarchy_tree, render)
-
+        self.populate_hierarchy(self.hierarchy_tree1, render)
     #TODO make each object from toml load up with a function that runs on load
 
     def populate_hierarchy(self, hierarchy_widget, node, parent_item=None):
@@ -178,6 +188,34 @@ class properties:
             scale = list(world.selected_node.getScale())
             scale[coord[1]] = value
             world.selected_node.setScale(*scale)
+class properties_ui_editor:
+    def __init__():
+        pass
+    def update_node_property(self, coord):
+        print(f"update_node_property called with coord: {coord}")
+        if coord not in uiEditor_inst.input_boxes:
+            print(f"Error: {coord} not found in input_boxes. Current keys: {list(uiEditor_inst.input_boxes.keys())}")
+            return
+        value = float(uiEditor_inst.input_boxes[coord].text())
+        if not world.selected_node:
+            return
+        try:
+            value = float(uiEditor_inst.input_boxes[coord].text())
+        except ValueError:
+            return  # Ignore invalid inputs
+
+        if coord[0] == 0:  # Translation
+            pos = list(world.selected_node.getPos())
+            pos[coord[1]] = value
+            world.selected_node.setPos(*pos)
+        elif coord[0] == 1:  # Rotation
+            hpr = list(world.selected_node.getHpr())
+            hpr[coord[1]] = value
+            world.selected_node.setHpr(*hpr)
+        elif coord[0] == 2:  # Scale
+            scale = list(world.selected_node.getScale())
+            scale[coord[1]] = value
+            world.selected_node.setScale(*scale)
 
 
 def on_item_clicked(item, column):
@@ -203,6 +241,42 @@ def on_item_clicked(item, column):
             if widget:
                 widget.setParent(None)
 
+        
+        inspector.recreate_property_box_for_node(node)
+        
+        ## Load scripts associated with the node
+        #if node in inspector.scripts:
+        #    for path, script_instance in inspector.scripts[node].items():
+        #        if inspector.prop:
+        #            
+        #            inspector.set_script(path, node, inspector.prop)
+        #else:
+        #    inspector.scripts = {}  # Initialize script storage for the node
+    else:
+        print("No node selected.")
+def on_item_clicked1(item, column):
+    #global selected_node
+    node = item.data(0, Qt.UserRole)  # Retrieve the NodePath stored in the item
+
+    if node:
+        world.selected_node = node
+        # Update input boxes with node's properties
+        uiEditor_inst.input_boxes[(0, 0)].setText(str(node.getX()))
+        uiEditor_inst.input_boxes[(0, 1)].setText(str(node.getY()))
+        uiEditor_inst.input_boxes[(0, 2)].setText(str(node.getZ()))
+        uiEditor_inst.input_boxes[(1, 0)].setText(str(node.getH()))
+        uiEditor_inst.input_boxes[(1, 1)].setText(str(node.getP()))
+        uiEditor_inst.input_boxes[(1, 2)].setText(str(node.getR()))
+        uiEditor_inst.input_boxes[(2, 0)].setText(str(node.getScale().x))
+        uiEditor_inst.input_boxes[(2, 1)].setText(str(node.getScale().y))
+        uiEditor_inst.input_boxes[(2, 2)].setText(str(node.getScale().z))
+
+        # Clear existing widgets in the ScriptInspector
+        for i in reversed(range(inspector.scroll_layout.count())):
+            widget = inspector.scroll_layout.itemAt(i).widget()
+            if widget:
+                widget.setParent(None)
+
         # Load scripts associated with the node
         if node in inspector.scripts:
             for path, script_instance in inspector.scripts[node].items():
@@ -215,14 +289,24 @@ def on_item_clicked(item, column):
 
 
 def new_tab(index):
-    if index == 2:
-        shader_editor.hide_nodes()
-        panda_widget_2.resizeEvent(panda_widget_2)
-    else:
+    if index == 1:
         shader_editor.show_nodes()
         pandaWidget.resizeEvent(pandaWidget)
+        world.cam.setPos(0, -55, 30)
+        world.cam.lookAt(0, 0, 0)
+    elif index == 2:
+        shader_editor.hide_nodes()
+        panda_widget_2.resizeEvent(panda_widget_2)
+        world.cam.setPos(0, -55, 30)
+        world.cam.lookAt(0, 0, 0)
 
-
+    elif index == 3:
+        print("!")
+        shader_editor.show_nodes()
+        pandaWidget.resizeEvent(pandaWidget)
+        pandaWidget1.resizeEvent(pandaWidget1)
+        world.cam.setPos(0,-3, 255)
+        world.cam.lookAt(world.canvas)
 class Node:
     def __init__(self, ref, path):
         self.ref = ref
@@ -303,7 +387,9 @@ if __name__ == "__main__":
     # Main Widget
     main_widget = QWidget()
     main_layout = QVBoxLayout(main_widget)  # Use vertical layout for tabs
-
+    
+    
+    
     # Create the toolbar
     toolbar = QToolBar("Main Toolbar")
     appw.addToolBar(toolbar)
@@ -409,6 +495,7 @@ if __name__ == "__main__":
     pandaWidget = QPanda3DWidget(world)
     viewport_inner_splitter.addWidget(pandaWidget)
 
+    
     # Drag-and-Drop File System
     file_system_panel = FileExplorer()
     #file_system_panel.setHeaderLabel("File System")
@@ -456,17 +543,33 @@ if __name__ == "__main__":
     viewport_tab = QWidget()
     viewport_layout = QVBoxLayout(viewport_tab)
 
+    # Add UI Editor
+    viewport_tab1 = QWidget()
+    viewport_layout1 = QVBoxLayout(viewport_tab1)
+    
     # Splitter for left panel, viewport, and right panel
     viewport_splitter = QSplitter(Qt.Horizontal)
     viewport_layout.addWidget(viewport_splitter)
 
+    viewport_splitter1 = QSplitter(Qt.Horizontal)
+    viewport_layout1.addWidget(viewport_splitter1)
+    
     panda_widget_2 = QPanda3DWidget(world)
     viewport_splitter.addWidget(panda_widget_2)
 
     shader_editor = ShaderEditor()
     viewport_splitter.addWidget(shader_editor)
 
+    # 2D Viewport
+    pandaWidget1 = QPanda3DWidget(world)
+    uiEditor_inst = ui_editor.Drag_and_drop_ui_editor(world, world.render)
+    viewport_splitter1.addWidget(uiEditor_inst.tab_content(viewport_tab1, world))
+    
+    
     tab_widget.addTab(viewport_tab, "Shader Editor")
+    tab_widget.currentChanged.connect(new_tab)
+    
+    tab_widget.addTab(viewport_tab1, "UI Editor")
     tab_widget.currentChanged.connect(new_tab)
 
     # Set the main widget as the central widget
@@ -474,13 +577,23 @@ if __name__ == "__main__":
 
     # Populate the hierarchy tree with actual scene data
     world.populate_hierarchy(world.hierarchy_tree, render)  # This will populate the hierarchy panel
+    world.populate_hierarchy(world.hierarchy_tree1, render)  # This will populate the hierarchy panel
 
     world.hierarchy_tree.itemClicked.connect(lambda item, column: on_item_clicked(item, column))
+    world.hierarchy_tree1.itemClicked.connect(lambda item, column: on_item_clicked1(item, column))
+    
+    world.ui_editor_script_to_canvas()
+    
+    
 
     prop = properties
+    prop_ui_e = properties_ui_editor
     for coord, box in input_boxes.items():
         # Use a default argument to capture the value of `coord` correctly
         box.textChanged.connect(lambda box=box, coord=coord: prop.update_node_property(box, coord))
+    for coord, box in uiEditor_inst.input_boxes.items():
+        # Use a default argument to capture the value of `coord` correctly
+        box.textChanged.connect(lambda box=box, coord=coord: prop_ui_e.update_node_property(box, coord))
 
     # Set the background color of the widget to gray
     qdarktheme.setup_theme()
