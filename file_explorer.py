@@ -28,6 +28,23 @@ class FileExplorer(QWidget):
         # Connect signals
         self.listview.clicked.connect(self.on_item_clicked)
 
+        self.context_menu = QMenu(self)
+        add = self.context_menu.addMenu("Add")
+        add.addAction("Level")
+        add.addAction("Shader")
+        add.addAction("Sequence")
+        add.addAction("Node")
+        add.addAction("Entity")
+        add.addAction("Python Script")
+
+        action2 = self.context_menu.addAction("Copy")
+        action3 = self.context_menu.addAction("Cut")
+        action3 = self.context_menu.addAction("Paste")
+        action3 = self.context_menu.addAction("Delete")
+
+        # Connect the actions to methods
+        #action2.triggered.connect(self.action2_triggered)
+
     def startDrag(self, supportedActions):
         """
         Initiates a drag action with the selected file's path.
@@ -62,3 +79,7 @@ class FileExplorer(QWidget):
             self.current_folder = path.path()
             print(f"Navigated up to: {self.current_folder}")
             self.listview.setRootIndex(self.fileModel.index(self.current_folder))
+
+    def contextMenuEvent(self, event):
+        # Show the context menu
+        self.context_menu.exec(event.globalPos())

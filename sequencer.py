@@ -60,7 +60,7 @@ class QInterval(QGraphicsItem):
         super().__init__()
 
 class QLerp(QInterval):
-    i = LerpPosInterval(nodePath,
+    """i = LerpPosInterval(nodePath,
                         duration,
                         pos,
                         startPos=None,
@@ -95,8 +95,8 @@ class QLerp(QInterval):
     Func(myFunction, arg1, arg2)
     actorInterval(
         "Animation Name",
-        loop= < 0 or 1 >,
-    constrainedLoop = < 0 or 1 >,
+        loop= 0,
+    constrainedLoop = 0,
     duration = D,
     startTime = T1,
     endTime = T2,
@@ -105,7 +105,7 @@ class QLerp(QInterval):
     playRate = R,
     partName = PN,
     lodName = LN,
-    )
+    )"""
 
 class QSound(QInterval):
     def __init__(self, mySound, loop, myDuration, volume, myStartTime):
@@ -172,7 +172,7 @@ def itemChange(change, value):
     return QGraphicsItem.itemChange(rect, change, value)  # Call super
 
 
-# Defining a scene rect of 400x200, with it's origin at 0,0.
+"""# Defining a scene rect of 400x200, with it's origin at 0,0.
 # If we don't set this on creation, we can set it later with .setSceneRect
 scene = QGraphicsScene()
 brush = QBrush()
@@ -215,4 +215,18 @@ ellipse.setFlags(QGraphicsItem.ItemIsMovable | QGraphicsItem.ItemIsSelectable)
 view = SequenceView(scene)
 #view.mouseMoveEvent = mouseMoveEvent
 view.show()
+app.exec_()"""
+
+q = QWidget()
+a = QTreeWidget(q)
+a.setColumnCount(5)
+w = QTreeWidgetItem(a)
+w.setText(0, "HI")
+w.setText(1, "HBI")
+cities =  QTreeWidgetItem(a)
+cities.setText(0, ("Cities"))
+osloItem =  QTreeWidgetItem(cities)
+osloItem.setText(0, ("Oslo"))
+osloItem.setText(1, ("Yes"))
+q.show()
 app.exec_()

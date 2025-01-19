@@ -29,9 +29,7 @@ import qdarktheme
 class PandaTest(Panda3DWorld):
     def __init__(self, width=1024, height=768, script_inspector=None):
         Panda3DWorld.__init__(self, width=width, height=height)
-        
-        
-        
+
         self.script_inspector = script_inspector
         self.loader = self.loader
         self.camera_controls = FlyingCamera(self)
@@ -50,7 +48,7 @@ class PandaTest(Panda3DWorld):
         self.grid = self.grid_maker.create()
         self.grid.reparentTo(render)
         self.grid.setLightOff()  # THE GRID SHOULD NOT BE LIT
-        
+
         self.selected_node = None
 
         # Now create some lights to apply to everything in the scene.
@@ -78,14 +76,13 @@ class PandaTest(Panda3DWorld):
         self.jump_up = self.panda.posInterval(1.0, Point3(0, 0, 5), blendType="easeOut")
         self.jump_down = self.panda.posInterval(1.0, Point3(0, 0, 0), blendType="easeIn")
         self.jump_seq = Sequence(self.jump_up, self.jump_down)
- 
+
         self.jump_up2 = self.panda.posInterval(1.0, Point3(10, 0, 15))
         self.jump_down2 = self.panda.posInterval(1.0, Point3(0, 0, 0))
         self.roll_left = self.panda.hprInterval(1.0, Point3(0, 0, 180))
         self.roll_right = self.panda.hprInterval(1.0, Point3(0, 0, 0))
         self.roll_seq = Sequence(Parallel(self.jump_up2, self.roll_left), Parallel(self.jump_down2, self.roll_right))
-        
-    
+
     def make_hierarchy(self):
         self.hierarchy_tree = QTreeWidget()
 
@@ -96,27 +93,23 @@ class PandaTest(Panda3DWorld):
         self.roll_seq.start()
 
     def add_model(self, model):
-
-
         self.hierarchy_tree.clear()
         self.populate_hierarchy(self.hierarchy_tree, render)
         world.selected_node = model
 
     def make_terrain(self):
-
-
         self.hierarchy_tree.clear()
-
 
         world.selected_node = self.terrain_generate.terrain_node
-        
+
         self.terrain_generate = terrainEditor.TerrainPainterApp(world, pandaWidget)
-        
+
         self.hierarchy_tree.clear()
-        
+
         self.populate_hierarchy(self.hierarchy_tree, render)
 
         selected_node = self.terrain_generate.terrain_node
+
     def reset_render(self):
         """
         Resets the render node to a new NodePath.
@@ -142,13 +135,12 @@ class PandaTest(Panda3DWorld):
         self.cam.node().getDisplayRegion(0).setSort(20)
 
         self.hierarchy_tree.clear()
-        
+
         self.populate_hierarchy(self.hierarchy_tree, render)
+
     #TODO make each object from toml load up with a function that runs on load
 
-
     def populate_hierarchy(self, hierarchy_widget, node, parent_item=None):
-
         # Create a new item for the current node
         item = QTreeWidgetItem(parent_item or hierarchy_widget, [node.getName()])
         item.setData(0, Qt.UserRole, node)  # Store the NodePath in the item data
@@ -157,10 +149,10 @@ class PandaTest(Panda3DWorld):
             self.populate_hierarchy(hierarchy_widget, child, item)
 
 
-
 class properties:
     def __init__():
         pass
+
     def update_node_property(self, coord):
         print(f"update_node_property called with coord: {coord}")
         if coord not in input_boxes:
@@ -186,6 +178,7 @@ class properties:
             scale = list(world.selected_node.getScale())
             scale[coord[1]] = value
             world.selected_node.setScale(*scale)
+
 
 def on_item_clicked(item, column):
     #global selected_node
@@ -214,7 +207,6 @@ def on_item_clicked(item, column):
         if node in inspector.scripts:
             for path, script_instance in inspector.scripts[node].items():
                 if inspector.prop:
-                    
                     inspector.set_script(path, node, inspector.prop)
         else:
             inspector.scripts = {}  # Initialize script storage for the node
@@ -229,6 +221,7 @@ def new_tab(index):
     else:
         shader_editor.show_nodes()
         pandaWidget.resizeEvent(pandaWidget)
+
 
 class Node:
     def __init__(self, ref, path):
@@ -249,7 +242,9 @@ def save_file():
     world.messenger.send("save")
     print("Save file triggered")
 
+
 import toml
+
 
 def load_project(world):
     """
@@ -257,20 +252,19 @@ def load_project(world):
     """
     # Prompt the user to select a TOML file
     file_path = QFileDialog.getExistingDirectory(None, "Select Project File", "")
-    
+
     if not file_path:
         print("No file selected.")
         return
 
     # Reset the current scene
     world.reset_render()  # Ensure `world` is valid and has this method
-    
 
     # Parse the TOML file and reconstruct the scene
     try:
         en = entity_editor
         data = en.Load(world).load_project_from_folder_toml(file_path, world.render)
-        
+
         # Example: Debug print project data
         print(f"Loaded Project Data: {data}")
 
@@ -282,9 +276,7 @@ def load_project(world):
     # Iterate through entities
 
 
-    
-    
-def close(): #TODO when saving is introduced make a window pop up with save option(save don't save and don't exist(canel))
+def close():  #TODO when saving is introduced make a window pop up with save option(save don't save and don't exist(canel))
     """closing the editor"""
     exit()
 
@@ -399,6 +391,7 @@ if __name__ == "__main__":
         def get_python_tag(self, key):
             return self.tags.get(key)
 
+
     inspector = scirpt_inspector.ScriptInspector(world, entity_editor, node, left_panel)
     world.script_inspector = inspector
 
@@ -424,9 +417,9 @@ if __name__ == "__main__":
     # Hierarchy Viewer (Right Panel)
     right_panel = QWidget()
     right_panel.setLayout(QVBoxLayout())
-    
+
     world.make_hierarchy()
-    
+
     world.hierarchy_tree.setHeaderLabel("Scene Hierarchy")
     world.hierarchy_tree.setDragEnabled(True)
     world.hierarchy_tree.setAcceptDrops(True)
@@ -491,7 +484,6 @@ if __name__ == "__main__":
 
     # Set the background color of the widget to gray
     qdarktheme.setup_theme()
-    #apply_stylesheet(appw, theme="light_blue.xml")
 
     # Show the application window
     appw.show()
