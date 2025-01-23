@@ -10,6 +10,7 @@ class MonoBehavior:
         """
         self.node = node
         self.started = False
+        self.__builtin__ = False 
         taskMgr.add(self._update_task, f"update_{id(self)}")
 
     def start(self):

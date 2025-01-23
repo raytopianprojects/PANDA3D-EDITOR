@@ -6,11 +6,16 @@ from direct.showbase.DirectObject import DirectObject
 import os
 import importlib
 import uuid
-
+from script_loader import load_script
+import ui_editor
 
 class ScriptInspector(QWidget):
     def __init__(self, world, entity_editor, node, parent=None, ):
         super().__init__(parent)
+        
+        self.specials = {}
+        
+        
         self.script_paths = {}
         self.setWindowTitle("Script Inspector")
         self.resize(500, 700)
@@ -111,6 +116,96 @@ class ScriptInspector(QWidget):
             for script_path, script_instance in scripts.items():
                 script_box = self.create_script_box(script_path, script_instance, node, isLoadScript=False)
                 self.scroll_layout.addWidget(script_box)
+                
+    
+    def set_ui_editor(self, node: NodePath, isCanvas: bool, isLabel: bool, instance, w):
+        
+        
+        script_box = QGroupBox()
+        #script_box.setStyleSheet("QGroupBox { background-color: gray; border: 1px solid black; border-radius: 20px; }")
+
+        script_layout = QVBoxLayout()
+
+        # Horizontal layout for script label and image
+        title_layout = QHBoxLayout()
+
+        # Add small 10x10 image near the script label
+        image_label = QLabel()
+        image_label.setMaximumWidth(20)
+        image_label.setMaximumHeight(20)
+        pixmap = QPixmap("python_img.png")  # Replace with the path to your image file
+        if not pixmap.isNull():
+            pixmap = pixmap.scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            image_label.setPixmap(pixmap)
+        else:
+            image_label.setText("No Image")  # Fallback if image can't be loaded
+
+        script_layout.addLayout(title_layout)
+        title_layout.addWidget(image_label)
+
+        # Label for script name
+        script_name = QLabel(f"Script: UI EDITOR")
+        script_name.setMaximumHeight(30)
+        title_layout.addWidget(script_name)
+
+        # Add properties as editable fields
+        item_height = 30  # Desired height for input fields
+        max_height = 30  # Maximum height for input fields
+        spacing = 30  # Space between items
+        
+        if isCanvas:
+            def make_label():
+                ui_editor.Drag_and_drop_ui_editor.label(instance, text="Label 1", parent=w.render2d)
+                w.hierarchy_tree.clear()
+                w.hierarchy_tree1.clear()
+
+                w.populate_hierarchy(w.hierarchy_tree, w.render)
+                w.populate_hierarchy(w.hierarchy_tree1, w.render2d)
+
+            create_label = QPushButton("Create Label")
+            
+            script_layout.addWidget(create_label)
+
+            create_label.clicked.connect(make_label)
+            
+            self.specials.setdefault(node, {})["__UIEditorCanvas__"] = {}
+            node.set_python_tag("specials", self.specials[node])
+            data = node.get_python_tag("specials_properties") or {"__UIEditorLabel__"}
+            node.set_python_tag("specials_properties", data)
+            node.set_python_tag("id", str(uuid.uuid4())[:8])
+            
+        
+        if isLabel:
+            def set_text(text):
+                node["Text"] = text
+                self.specials.setdefault(node, {})["__UIEditorLabel__"] = {"Text" : text}
+            input_field = QLineEdit("Label 1")
+            input_field.setMaximumHeight(max_height)  # Set maximum height
+            script_layout.addWidget(input_field)
+            
+            input_field.textChanged.connect(lambda text: set_text(text))
+            self.specials.setdefault(node, {})["__UIEditorLabel__"] = {"Text" : "Label 1"}
+            node.set_python_tag("specials", self.specials[node])
+            data = node.get_python_tag("specials_properties") or {"__UIEditorLabel__"}
+            node.set_python_tag("specials_properties", data)
+            node.set_python_tag("id", str(uuid.uuid4())[:8])
+            
+        
+        
+        # Set layout properties for spacing
+        script_layout.setSpacing(spacing)
+
+        # Calculate the height based on the number of items
+        num_items = len(["input_text", "canvas_check_box", "label_checkbox", "size", "parent"])
+        total_height = (num_items * item_height) + ((num_items - 1) * spacing)
+        script_box.setLayout(script_layout)
+
+        self.scroll_layout.addWidget(script_box)  # Add to the scrollable layout
+    
+    
+    
+        
+        
 
     def set_script(self, path, node, prop=None):
         """
@@ -122,32 +217,49 @@ class ScriptInspector(QWidget):
             script_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(script_module)
             node.set_python_tag("type", "1")
-            if hasattr(script_module, "Script"):
-                # Check if the script is already associated with the node
 
-                script_instance = script_module.Script()
-                self.scripts.setdefault(node, {})[path] = script_instance
-                node.set_python_tag("scripts", self.scripts[node])
-                node.set_python_tag("script_paths", self.scripts[node])
-                data = node.get_python_tag("script_properties") or {os.path.basename(path)}
-                node.set_python_tag("script_properties", data)
-                node.set_python_tag("id", str(uuid.uuid4())[:8])
-                if prop:
-                    self.prop[node] = prop
-                    # Create a new group box for the script
-                    script_box = self.create_script_box(path, script_instance, node, True)
 
-                elif not prop:
+            try:
+                #module = load_script(path)
+                class_name = os.path.splitext(os.path.basename(path))[0]
+                if hasattr(script_module, class_name):
+                    behavior_class = getattr(script_module, class_name)
+                    # Check if the script is already associated with the node
+    
+                    try:
+                        # Instantiate behavior with node reference
+                        instance = behavior_class(self.node)
+                    except TypeError:
+                        # If constructor doesn't accept arguments, instantiate without
+                        instance = behavior_class()
+                        if hasattr(instance, 'node'):
+                            instance.node = self.node
+                    self.scripts.setdefault(node, {})[path] = instance
+                    node.set_python_tag("scripts", self.scripts[node])
+                    node.set_python_tag("script_paths", self.scripts[node])
+                    data = node.get_python_tag("script_properties") or {os.path.basename(path)}
+                    node.set_python_tag("script_properties", data)
+                    node.set_python_tag("id", str(uuid.uuid4())[:8])
+                    if prop:
+                        self.prop[node] = prop
+                        # Create a new group box for the script
+                        script_box = self.create_script_box(path, instance, node, True)
+    
+                    elif not prop:
+                        
                     
-
-                    # Create a new group box for the script
-                    script_box = self.create_script_box(path, script_instance, node, False)
-                elif self.prop[node]:
-                    script_box = self.create_script_box(path, script_instance, node, True)
-
-                self.scroll_layout.addWidget(script_box)  # Add to the scrollable layout
-                self.current_script_instance = script_instance
-                print(f"Script loaded successfully: {path}")
+                        # Create a new group box for the script
+                        script_box = self.create_script_box(path, instance, node, False)
+                    elif self.prop[node]:
+                        script_box = self.create_script_box(path, instance, node, True)
+    
+                    self.scroll_layout.addWidget(script_box)  # Add to the scrollable layout
+                    self.current_script_instance = instance
+                    print(f"Script loaded successfully: {path}")
+                else:
+                    print(f"Class '{class_name}' not found in '{path}'")
+            except Exception as e:
+                print(f"Error loading script '{path}': {e}")
         except Exception as e:
             print(f"Error loading script from {path}: {e}")
 
@@ -197,17 +309,22 @@ class ScriptInspector(QWidget):
         item_height = 30  # Desired height for input fields
         max_height = 30  # Maximum height for input fields
         spacing = 30  # Space between items
-        if isLoadScript:
+        isBuiltIn = False
+        if isLoadScript and not path == "":
             for attr, value in attributes.items():
-                if attr == "INPUTS":
-                    for name, val in value.items():
-                        if name == "Text":
-                            input_field = QLineEdit(str(val))
-                            input_field.setObjectName(name)
-                            input_field.setMaximumHeight(max_height)  # Set maximum height
-                            script_layout.addWidget(input_field)
+                
+                if attr == "__builtin__" and value:
+                    isBuiltIn = True
+                if isBuiltIn:
+                    if isinstance(value, bool):
+                        check = QCheckBox(value)
+                        check.stateChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
+                        #-----------------------------WIP-----------------------------#
                 for v in self.prop.values():
                     for value1 in v.values():
+                        if isinstance(value, bool):  # Handle Bool
+                            check = QCheckBox(value)
+                            check.stateChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
                         if isinstance(value, NodePath):  # Handle NodePath (object reference)
                             node = self.world.render.find(f"**/{value1}")
                             if not node.is_empty():
@@ -289,6 +406,9 @@ class ScriptInspector(QWidget):
                             input_field.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
         else:
             for attr, value in attributes.items():
+                print(attr, value)
+                if attr == "__builtin__" and value:
+                    print("True")
                 if attr == "INPUTS":
                     for name, val in value.items():
                         if name == "Text":

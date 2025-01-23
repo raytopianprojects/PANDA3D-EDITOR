@@ -10,6 +10,7 @@ import scirpt_inspector
 import entity_editor
 from QPanda3D.QPanda3DWidget import QPanda3DWidget
 from file_explorer import FileExplorer
+import entity_editor
 
 class Drag_and_drop_ui_editor:
     def __init__(self, world: Panda3DWorld, panda_widget):
@@ -37,7 +38,7 @@ class Drag_and_drop_ui_editor:
         self.world.accept("mouse-move", self.mouse_move)
         
         # Create UI elements
-        self.label("hello world!", 0.1, parent=world.canvas)
+        #self.label("hello world!", 0.1, parent=world.canvas)
         print("hello world")
     
     def tab_content(self, viewport_tab, world):
@@ -68,12 +69,12 @@ class Drag_and_drop_ui_editor:
                 return self.tags.get(key)
 
         node = DummyNode("Cube")
-        inspector = scirpt_inspector.ScriptInspector(world, entity_editor, node, left_panel)
-        world.script_inspector = inspector
+        self.inspector_ui_tab = scirpt_inspector.ScriptInspector(world, entity_editor, node, left_panel)
+        world.script_inspector = self.inspector_ui_tab
 
 
         #inspector.show()
-        left_panel_layout.addWidget(inspector)
+        left_panel_layout.addWidget(self.inspector_ui_tab)
         viewport_splitter.addWidget(left_panel)
 
         # Splitter for 3D Viewport and File System
@@ -123,32 +124,41 @@ class Drag_and_drop_ui_editor:
 
         viewport_splitter.addWidget(right_panel)
         return viewport_splitter
-    def attach_collision_to_widget(self, label, size=(3, 2, 1)):
-        # Create a collision node
-        collision_node = CollisionNode('labelCollisionNode')
-        frame_size = label['scale']
-        width = frame_size
-        # Create a collision box
-        collision_box = CollisionBox(Point3(-size[0], -size[1], -size[2]), Point3(size[0], size[1], size[2]))
-        collision_node.addSolid(collision_box)
+    def attach_collision_to_widget(self, widget):
+        # Define corners of a rectangle in the widget's coordinate space.
+        # Adjust coordinates as necessary to match widget size/position.
+        corners = [
+            Point3(-0.5, 0, -0.5),
+            Point3(0.5, 0, -0.5),
+            Point3(0.5, 0, 0.5),
+            Point3(-0.5, 0, 0.5)
+        ]
+        polygon = CollisionPolygon(*corners)
+        collisionNode = CollisionNode('uiCollision')
+        collisionNode.addSolid(polygon)
         
-        # Attach the collision node to the label's node path
-        label_cnp = label.attachNewNode(collision_node)
+        # Set collision masks to match the ray's settings.
+        collisionNode.set_into_collide_mask(BitMask32.bit(1))
         
-        # Set the collision mask
-        label_cnp.node().set_from_collide_mask(BitMask32.bit(1))
-        label_cnp.node().set_into_collide_mask(BitMask32.bit(1))
-        label_cnp.node().set_collide_mask(BitMask32.bit(1))
-        
-        # Optionally show the collision node for debugging
-        #label_cnp.show()
-    
-        return label_cnp
+        # Attach collision node to the widget
+        collisionNP = widget.attachNewNode(collisionNode)
+        # Optional: visualize collision geometry for debugging
+        # collisionNP.show()
+        collisionNP.show()
+        return collisionNP
 
+    def set_script_to_widget(self, widget, script):
+        widget.set_python_tag("action", script)
+    
+    
+    def load_ui(self):
+        entity_editor.Load.load_ui_from_folder_toml
+    def save_ui(self, name):
+        entity_editor.Save.save_scene_ui_to_toml(self.world.render2d, "/saves/uis/" + name)
     def label(self, text, scale=0.1, pos=(0, 0, 0.5), parent=None, frameColor=(0.5, 0.5, 0.5, 1), text_fg=(1, 1, 1, 1)):
 
         # Create a draggable label
-        self.label1 = DirectLabel(
+        label1 = DirectLabel(
             text=text,
             scale=scale,
             pos=pos,
@@ -156,21 +166,36 @@ class Drag_and_drop_ui_editor:
             frameColor=frameColor,
             text_fg=text_fg,
         )
-        # Attach collision with the helper function
-        self.attach_collision_to_widget(self.label1)
+        
+        label1.set_python_tag("widget_type", "l")
         
         
-        self.label1.setBillboardPointEye()
-        # Create a BillboardEffect
-        myEffect = BillboardEffect.make(up_vector=Vec3(0, 0, 1), eye_relative=True,
-                                        axial_rotate=True, offset=1, look_at=self.world.cam,
-                                        look_at_point=Point3(0, 1, 0), fixed_depth=False)
+        self.attach_collision_to_widget(label1)
 
-        self.label1.setEffect(myEffect)
-        self.label1.setTransparency(True)
-        self.label1.setBin('fixed', 0)
-        self.label1.setDepthTest(False)
-        self.label1.setDepthWrite(False)
+        # Bind events for dragging (for both elements)
+        #self.draggable_button.bind(DGG.B1PRESS, self.start_drag, extraArgs=[self.draggable_button, self.label1])
+        #self.label1.bind(DGG.B1PRESS, self.start_drag, extraArgs=[self.draggable_button, self.label1])
+        #self.draggable_button.bind(DGG.B1RELEASE, self.stop_drag)
+        #self.label1.bind(DGG.B1RELEASE, self.stop_drag)
+    def button(self, text, scale=0.1, pos=(0, 0, 0.5), parent=None, frameColor=(0.5, 0.5, 0.5, 1), text_fg=(1, 1, 1, 1)):
+
+        # Create a draggable label
+        label1 = DirectButton(
+            text=text,
+            scale=scale,
+            pos=pos,
+            parent=parent,
+            frameColor=frameColor,
+            text_fg=text_fg,
+        )
+        
+        self.widgets.append(label1)
+        
+        
+        label1.set_python_tag("widget_type", "b")
+        
+        
+        self.attach_collision_to_widget(label1)
 
         # Bind events for dragging (for both elements)
         #self.draggable_button.bind(DGG.B1PRESS, self.start_drag, extraArgs=[self.draggable_button, self.label1])
@@ -179,16 +204,7 @@ class Drag_and_drop_ui_editor:
         #self.label1.bind(DGG.B1RELEASE, self.stop_drag)
 
     def Frame(self, path):
-        # Create a draggable button for frame
-        self.draggable_button = DirectButton(
-            text="button",
-            scale=0.1,
-            pos=(0, 0, 0),
-            parent=self.world.canvas,
-            frameColor=(0.5, 0.5, 0.5, 0),
-            text_fg=(1, 1, 1, 0),
-        )
-        self.image_frame = DirectFrame(
+        image_frame = DirectFrame(
             frameSize=(-0.5, 0.5, -0.5, 0.5),
             frameColor=(0, 0, 0, 0),   # Transparent frame
             image=path,  # Path to the image
@@ -196,6 +212,10 @@ class Drag_and_drop_ui_editor:
             image_scale=(1, 1, 1),     # Scale the image
             pos=(0, 0, 0)
         )
+        
+        self.widgets.append(image_frame)
+        
+        image_frame.set_python_tag("widget_type", "f")
 
         # Bind events for dragging
         self.draggable_button.bind(DGG.B1PRESS, self.start_drag, extraArgs=[self.draggable_button, self.image_frame])
@@ -219,51 +239,76 @@ class Drag_and_drop_ui_editor:
             self.Frame(text)
         return self.get_all_2d_nodes()
 
-    def drag_task(self, task):
-        if not self.world.mouseWatcherNode.hasMouse():
-            print("Mouse not detected.")
-            return task.cont
+    
+    
+    
+    def is_mouse_over_widget(self, world, widget):
+        # Check if mouse is available
+        if not world.mouseWatcherNode.hasMouse():
+            return False
 
-        pMouse = self.world.mouseWatcherNode.getMouse()
-        print(f"Normalized Mouse Position: {pMouse}")
+        # Retrieve normalized mouse position from the mouse watcher node
+        mouse_norm = world.mouseWatcherNode.getMouse()  # Vec2
 
-        pFrom = Point3()
-        pTo = Point3()
-        self.world.camLens.extrude(pMouse, pFrom, pTo)
+        # Convert normalized mouse coordinates to render2d coordinates
+        # In a default render2d setup, normalized mouse coordinates correspond directly to render2d space
+        mouse_x = mouse_norm.getX()
+        mouse_z = mouse_norm.getY()  # Using z-axis for vertical in render2d
 
-        pFrom = self.world.render.getRelativePoint(self.world.cam, pFrom)
-        pTo = self.world.render.getRelativePoint(self.world.cam, pTo)
-        print(f"World Space Ray Start: {pFrom}, End: {pTo}")
+        # Get widget's position relative to render2d
+        pos = widget.getPos(world.render2d)  # Returns an LVecBase3f
+        wx = pos.x
+        wz = pos.z  # For 2D, x and z coordinates are used (assuming y is depth which is constant)
 
-        self.mouse_ray.set_origin(pFrom)
-        self.mouse_ray.set_direction((pTo - pFrom).normalized())
+        # Get widget's scale (assuming uniform scaling for width and height)
+        scale = widget.getScale(world.render2d)
+        # Estimate width and height based on known base dimensions and widget scale.
+        # You may need to adjust these factors to match the actual visual size of your widget.
+        base_width = 0.5   # Base width for a scale of 1; adjust as needed
+        base_height = 0.5  # Base height for a scale of 1; adjust as needed
+        width = base_width * scale.x
+        height = base_height * scale.z  # assuming z-scale affects height in render2d
 
-        self.collision_handler.clear_entries()
-        self.collision_traverser.traverse(self.world.render)
+        # Define boundaries of the widget
+        left = wx - width
+        right = wx + width
+        bottom = wz - height
+        top = wz + height
+        
+        print(left, mouse_x, right, pos.z)
 
-        if self.collision_handler.get_num_entries() > 0:
-            print("works")
-            self.collision_handler.sort_entries()
-            entry = self.collision_handler.get_entry(0)
-            point = entry.getSurfacePoint(self.world.render)
-            hit_node_path = entry.getIntoNodePath()  # Retrieve the NodePath that was hit
-
-            if not hit_node_path.isEmpty():
-                print(Vec3(point[0], point[1], 255))
-                self.draggable = True
-                
-                
-                # Optionally, if you want to drag the child, you can set the task to keep updating
-                # self.task_drag = self.world.taskMgr.add(self.drag_task, "drag-task", extraArgs=[element, hit_node_path], appendTask=True)
-            else:
-                print("No valid node found in collision entry")
+        # Check if mouse position lies within these boundaries
+        if (left <= mouse_x <= right) and (bottom <= mouse_z <= top):
+            return True
         else:
-            print("No entries found in collision queue")
-        if self.draggable and self.is_moving:
-            self.world.add_task(self.move_widget, "move_widget", appendTask=True, extraArgs = [hit_node_path])
-            self.draggable = False
-            self.is_moving = False
+            return False
+    def drag_task(self, task):
+        if self.is_mouse_over_widget(self.world, self.label1):
+            print("test!!!!!")
+            self.draggable = True
+            if self.draggable and self.is_moving:
+                self.world.add_task(self.move_widget, "move_widget", appendTask=True, extraArgs = [self.label1])
+                self.draggable = False
+                self.is_moving = False
         return task.cont if self.holding else task.done
+        #if self.collision_handler.get_num_entries() > 0:
+        #    print("works")
+        #    self.collision_handler.sort_entries()
+        #    entry = self.collision_handler.get_entry(0)
+        #    point = entry.getSurfacePoint(self.world.render)
+        #    hit_node_path = entry.getIntoNodePath()  # Retrieve the NodePath that was hit
+
+        #    if not hit_node_path.isEmpty():
+        #        print(Vec3(point[0], point[1], 255))
+        #        self.draggable = True
+        #        
+        #        
+        #        # Optionally, if you want to drag the child, you can set the task to keep updating
+        #        # self.task_drag = self.world.taskMgr.add(self.drag_task, "drag-task", extraArgs=[element, hit_node_path], appendTask=True)
+        #    else:
+        #        print("No valid node found in collision entry")
+        #else:
+        #    print("No entries found in collision queue")
     
     def move_widget(self, hit_node_path, task):
         pMouse = self.world.mouseWatcherNode.getMouse()

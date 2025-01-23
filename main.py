@@ -33,30 +33,19 @@ class PandaTest(Panda3DWorld):
     def __init__(self, width=1024, height=768, script_inspector=None):
         Panda3DWorld.__init__(self, width=width, height=height)
         
-        self.canvas = NodePath("UI-Canvas")
-        self.canvas.reparent_to(render)
-        self.canvas.setPos(0, 0, 255)
+        self.setupRender2d()
         
-        self.label1 = DirectLabel(
-            text="test",
-            scale=0.1,
-            pos=(0, 0, 0),
-            parent=self.canvas,
-            frameColor=(0.5, 0.5, 0.5, 1),
-        )
-        self.label1.setBillboardPointEye()
-        # Create a BillboardEffect
-        myEffect = BillboardEffect.make(up_vector=Vec3(0, 0, 1), eye_relative=True,
-                                        axial_rotate=True, offset=1, look_at=self.cam,
-                                        look_at_point=Point3(0, 1, 0), fixed_depth=False)
+        
+        
 
-        self.label1.setEffect(myEffect)
-        self.label1.setTransparency(True)
-        self.label1.setBin('fixed', 0)
-        self.label1.setDepthTest(False)
-        self.label1.setDepthWrite(False)
         
-        self.label1.reparent_to(self.canvas)
+        self.canvas = NodePath("UI-Canvas")
+        self.canvas.reparent_to(self.render2d)
+        
+        self.canvas.set_python_tag("isCanvas", True)
+        self.canvas.set_python_tag("isLabel", False)
+        
+        self.canvas.setPos(0, 0, 255)
         # Set up the orthographic camera
         self.ortho_cam = self.makeCamera(self.win)
         lens = OrthographicLens()
@@ -117,7 +106,9 @@ class PandaTest(Panda3DWorld):
         self.roll_left = self.panda.hprInterval(1.0, Point3(0, 0, 180))
         self.roll_right = self.panda.hprInterval(1.0, Point3(0, 0, 0))
         self.roll_seq = Sequence(Parallel(self.jump_up2, self.roll_left), Parallel(self.jump_down2, self.roll_right))
-        
+    
+    def recreate_widget(self, text, scale, pos, parent):
+        uiEditor_inst.label(text, scale, pos, parent)
     
     def make_hierarchy(self):
         self.hierarchy_tree = QTreeWidget()
@@ -135,7 +126,7 @@ class PandaTest(Panda3DWorld):
         self.hierarchy_tree.clear()
         self.populate_hierarchy(self.hierarchy_tree, render)
         self.hierarchy_tree1.clear()
-        self.populate_hierarchy(self.hierarchy_tree1, render)
+        self.populate_hierarchy(self.hierarchy_tree1, self.render2d)
         world.selected_node = model
 
     def make_terrain(self):
@@ -149,11 +140,11 @@ class PandaTest(Panda3DWorld):
         world.selected_node = self.terrain_generate.terrain_node
         
         self.populate_hierarchy(self.hierarchy_tree, render)
-        self.populate_hierarchy(self.hierarchy_tree1, render)
+        self.populate_hierarchy(self.hierarchy_tree1, self.render2d)
 
         selected_node = self.terrain_generate.terrain_node
-    def ui_editor_script_to_canvas(self):
-        inspector.set_script(os.path.relpath("D:/000PANDA3d-EDITOR/PANDA3D-EDITOR/ui_editor_properties.py"), self.canvas, inspector.prop)
+    #def ui_editor_script_to_canvas(self):
+    #    inspector.set_script(os.path.relpath("D:/000PANDA3d-EDITOR/PANDA3D-EDITOR/ui_editor_properties.py"), self.canvas, inspector.prop)
     def reset_render(self):
         """
         Resets the render node to a new NodePath.
@@ -182,7 +173,7 @@ class PandaTest(Panda3DWorld):
         self.hierarchy_tree1.clear()
         
         self.populate_hierarchy(self.hierarchy_tree, render)
-        self.populate_hierarchy(self.hierarchy_tree1, render)
+        self.populate_hierarchy(self.hierarchy_tree1, self.render2d)
     #TODO make each object from toml load up with a function that runs on load
 
 
@@ -308,19 +299,23 @@ def on_item_clicked1(item, column):
         uiEditor_inst.input_boxes[(2, 2)].setText(str(node.getScale().z))
 
         # Clear existing widgets in the ScriptInspector
-        for i in reversed(range(inspector.scroll_layout.count())):
-            widget = inspector.scroll_layout.itemAt(i).widget()
+        for i in reversed(range(uiEditor_inst.inspector_ui_tab.scroll_layout.count())):
+            widget = uiEditor_inst.inspector_ui_tab.scroll_layout.itemAt(i).widget()
             if widget:
                 widget.setParent(None)
+                
+        
+        uiEditor_inst.inspector_ui_tab.recreate_property_box_for_node(node)
 
         # Load scripts associated with the node
-        if node in inspector.scripts:
-            for path, script_instance in inspector.scripts[node].items():
-                if inspector.prop:
-                    
-                    inspector.set_script(path, node, inspector.prop)
-        else:
-            inspector.scripts = {}  # Initialize script storage for the node
+        #if node in inspector.scripts:
+        #    for path, script_instance in inspector.scripts[node].items():
+        #        if inspector.prop:
+        #            
+        #            inspector.set_script(path, node, inspector.prop)
+        #else:
+        #    inspector.scripts = {}  # Initialize script storage for the node
+        uiEditor_inst.inspector_ui_tab.set_ui_editor(node, node.get_python_tag("isCanvas"), node.get_python_tag("isLabel"), instance=uiEditor_inst, w=world)
     else:
         print("No node selected.")
 
@@ -329,6 +324,7 @@ def new_tab(index):
     if index == 1:
         shader_editor.show_nodes()
         pandaWidget.resizeEvent(pandaWidget)
+        pandaWidget1.resizeEvent(pandaWidget1)
         world.cam.setPos(0, -55, 30)
         world.cam.lookAt(0, 0, 0)
     elif index == 2:
@@ -342,6 +338,7 @@ def new_tab(index):
         shader_editor.show_nodes()
         pandaWidget.resizeEvent(pandaWidget)
         pandaWidget1.resizeEvent(pandaWidget1)
+        panda_widget_2.resizeEvent(panda_widget_2)
         world.cam.setPos(0,-3, 255)
         world.cam.lookAt(world.canvas)
 class Node:
@@ -531,7 +528,7 @@ if __name__ == "__main__":
     # 3D Viewport
     pandaWidget = QPanda3DWidget(world)
     viewport_inner_splitter.addWidget(pandaWidget)
-
+ 
     
     # Drag-and-Drop File System
     file_system_panel = FileExplorer()
@@ -599,7 +596,7 @@ if __name__ == "__main__":
 
     # 2D Viewport
     pandaWidget1 = QPanda3DWidget(world)
-    uiEditor_inst = ui_editor.Drag_and_drop_ui_editor(world, world.render)
+    uiEditor_inst = ui_editor.Drag_and_drop_ui_editor(world, world.render2d)
     viewport_splitter1.addWidget(uiEditor_inst.tab_content(viewport_tab1, world))
     
     
@@ -614,12 +611,12 @@ if __name__ == "__main__":
 
     # Populate the hierarchy tree with actual scene data
     world.populate_hierarchy(world.hierarchy_tree, render)  # This will populate the hierarchy panel
-    world.populate_hierarchy(world.hierarchy_tree1, render)  # This will populate the hierarchy panel
+    world.populate_hierarchy(world.hierarchy_tree1, world.render2d)  # This will populate the hierarchy panel
 
     world.hierarchy_tree.itemClicked.connect(lambda item, column: on_item_clicked(item, column))
     world.hierarchy_tree1.itemClicked.connect(lambda item, column: on_item_clicked1(item, column))
     
-    world.ui_editor_script_to_canvas()
+    #world.ui_editor_script_to_canvas()
     
     
 

@@ -1,18 +1,33 @@
 from panda3d.core import NodePath, Texture
 import ui_editor
-class Script():
-    def __init__(self):
-        self.isCanvas = False
+from monobehavior import MonoBehavior
+class ui_editor_properties(MonoBehavior):
+    def __init__(self, node):
+        super().__init__(node)
+        self.node = node
         
-        self.isLabel = False
-        if self.isCanvas:
-            self.create_canvas()
+        self.__builtin__ = True
         
-        if self.isLabel:
-            self.label()
-    def create_canvas(self):
-        self.BUTTON = {"Create..." : "label"}
+        self._private_isCanvas = False
+        self._private_isLabel = False
+        self.current_text = "Label 1"
+        self.button = {}
+        self.inputs = {}
+    def start(self):
+        pass
     
-    def label(self):
-        
-        self.INPUTS = {"Text" : "Name", "Scale" : 0.1}
+    
+    def create_label(self):
+        ui_editor.Drag_and_drop_ui_editor.label("Label 1", parent=self.node)
+    
+    def update_label(self):
+        self.node['text'] = self.current_text
+    def update(self, dt):
+        if self._private_isCanvas:
+            self.button = {
+                "create label" : self.create_label()
+            }
+        if self._private_isLabel:
+            self.inputs = {
+                "Text" : self.update_label()
+            }
