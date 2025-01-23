@@ -16,6 +16,7 @@ class Drag_and_drop_ui_editor:
     def __init__(self, world: Panda3DWorld, panda_widget):
         self.world = world
         self.widget = panda_widget
+        self.widgets = []
         self.task_drag = None  # Initialize task_drag once
         
         self.draggable = False
@@ -152,13 +153,13 @@ class Drag_and_drop_ui_editor:
     
     
     def load_ui(self):
-        entity_editor.Load.load_ui_from_folder_toml
+        entity_editor.Load.load_ui_from_folder_toml()
     def save_ui(self, name):
         entity_editor.Save.save_scene_ui_to_toml(self.world.render2d, "/saves/uis/" + name)
     def label(self, text, scale=0.1, pos=(0, 0, 0.5), parent=None, frameColor=(0.5, 0.5, 0.5, 1), text_fg=(1, 1, 1, 1)):
 
         # Create a draggable label
-        label1 = DirectLabel(
+        obj = DirectLabel(
             text=text,
             scale=scale,
             pos=pos,
@@ -167,10 +168,13 @@ class Drag_and_drop_ui_editor:
             text_fg=text_fg,
         )
         
-        label1.set_python_tag("widget_type", "l")
+        obj.set_python_tag("widget_type", "l")
+        self.widgets.append(obj)
+        
+        #label1.set_python_tag("widget_type", "l")
         
         
-        self.attach_collision_to_widget(label1)
+        #self.attach_collision_to_widget(label1)
 
         # Bind events for dragging (for both elements)
         #self.draggable_button.bind(DGG.B1PRESS, self.start_drag, extraArgs=[self.draggable_button, self.label1])
@@ -180,7 +184,7 @@ class Drag_and_drop_ui_editor:
     def button(self, text, scale=0.1, pos=(0, 0, 0.5), parent=None, frameColor=(0.5, 0.5, 0.5, 1), text_fg=(1, 1, 1, 1)):
 
         # Create a draggable label
-        label1 = DirectButton(
+        obj = DirectButton(
             text=text,
             scale=scale,
             pos=pos,
@@ -188,15 +192,11 @@ class Drag_and_drop_ui_editor:
             frameColor=frameColor,
             text_fg=text_fg,
         )
-        
-        self.widgets.append(label1)
-        
-        
-        label1.set_python_tag("widget_type", "b")
-        
-        
-        self.attach_collision_to_widget(label1)
+         
+        obj.set_python_tag("widget_type", "b")
 
+        
+        self.widgets.append(obj)
         # Bind events for dragging (for both elements)
         #self.draggable_button.bind(DGG.B1PRESS, self.start_drag, extraArgs=[self.draggable_button, self.label1])
         #self.label1.bind(DGG.B1PRESS, self.start_drag, extraArgs=[self.draggable_button, self.label1])
@@ -242,54 +242,62 @@ class Drag_and_drop_ui_editor:
     
     
     
-    def is_mouse_over_widget(self, world, widget):
-        # Check if mouse is available
-        if not world.mouseWatcherNode.hasMouse():
-            return False
+    def is_mouse_over_widget(self, world):
+        for widget in self.widgets:
+            if widget is None:
+                continue  # Skip invalid entries
+            else:
+                print(self.widgets)
+                
+                
+                # Check if mouse is available
+                if not world.mouseWatcherNode.hasMouse():
+                    return False
 
-        # Retrieve normalized mouse position from the mouse watcher node
-        mouse_norm = world.mouseWatcherNode.getMouse()  # Vec2
+                # Retrieve normalized mouse position from the mouse watcher node
+                mouse_norm = world.mouseWatcherNode.getMouse()  # Vec2
 
-        # Convert normalized mouse coordinates to render2d coordinates
-        # In a default render2d setup, normalized mouse coordinates correspond directly to render2d space
-        mouse_x = mouse_norm.getX()
-        mouse_z = mouse_norm.getY()  # Using z-axis for vertical in render2d
+                # Convert normalized mouse coordinates to render2d coordinates
+                # In a default render2d setup, normalized mouse coordinates correspond directly to render2d space
+                mouse_x = mouse_norm.getX()
+                mouse_z = mouse_norm.getY()  # Using z-axis for vertical in render2d
 
-        # Get widget's position relative to render2d
-        pos = widget.getPos(world.render2d)  # Returns an LVecBase3f
-        wx = pos.x
-        wz = pos.z  # For 2D, x and z coordinates are used (assuming y is depth which is constant)
+                # Get widget's position relative to render2d
+                pos = widget.getPos()  # Returns an LVecBase3f
+                wx = pos.x
+                wz = pos.z  # For 2D, x and z coordinates are used (assuming y is depth which is constant)
 
-        # Get widget's scale (assuming uniform scaling for width and height)
-        scale = widget.getScale(world.render2d)
-        # Estimate width and height based on known base dimensions and widget scale.
-        # You may need to adjust these factors to match the actual visual size of your widget.
-        base_width = 0.5   # Base width for a scale of 1; adjust as needed
-        base_height = 0.5  # Base height for a scale of 1; adjust as needed
-        width = base_width * scale.x
-        height = base_height * scale.z  # assuming z-scale affects height in render2d
+                # Get widget's scale (assuming uniform scaling for width and height)
+                scale = widget.getScale()
+                # Estimate width and height based on known base dimensions and widget scale.
+                # You may need to adjust these factors to match the actual visual size of your widget.
+                base_width = 0.5   # Base width for a scale of 1; adjust as needed
+                base_height = 0.5  # Base height for a scale of 1; adjust as needed
+                width = base_width * scale.x
+                height = base_height * scale.z  # assuming z-scale affects height in render2d
 
-        # Define boundaries of the widget
-        left = wx - width
-        right = wx + width
-        bottom = wz - height
-        top = wz + height
-        
-        print(left, mouse_x, right, pos.z)
+                # Define boundaries of the widget
+                left = wx - width
+                right = wx + width
+                bottom = wz - height
+                top = wz + height
 
-        # Check if mouse position lies within these boundaries
-        if (left <= mouse_x <= right) and (bottom <= mouse_z <= top):
-            return True
-        else:
-            return False
+                print(left, mouse_x, right, pos.z)
+
+                # Check if mouse position lies within these boundaries
+                if (left <= mouse_x <= right) and (bottom <= mouse_z <= top):
+                    self.draggable = True
+                    if self.draggable and self.is_moving:
+                        self.world.add_task(self.move_widget, "move_widget", appendTask=True, extraArgs = [widget])
+                        self.draggable = False
+                        self.is_moving = False
+                    return True
+        return False
     def drag_task(self, task):
-        if self.is_mouse_over_widget(self.world, self.label1):
+        
+        if self.is_mouse_over_widget(self.world):
             print("test!!!!!")
-            self.draggable = True
-            if self.draggable and self.is_moving:
-                self.world.add_task(self.move_widget, "move_widget", appendTask=True, extraArgs = [self.label1])
-                self.draggable = False
-                self.is_moving = False
+            
         return task.cont if self.holding else task.done
         #if self.collision_handler.get_num_entries() > 0:
         #    print("works")

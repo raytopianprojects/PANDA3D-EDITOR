@@ -350,6 +350,36 @@ class Node:
         if path not in self.paths:
             self.paths.append(path)
 
+class Save_ui(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Second Window")
+        self.setGeometry(150, 150, 300, 200)
+        
+        # Layout for the second window
+        layout = QVBoxLayout()
+        
+        # Input field
+        self.input_field = QLineEdit(self)
+        self.input_field.setPlaceholderText("Enter some text...")
+        layout.addWidget(self.input_field)
+        
+        # Button to process the input
+        self.submit_button = QPushButton("Submit", self)
+        self.submit_button.clicked.connect(self.process_input)
+        layout.addWidget(self.submit_button)
+        
+        # Label to display input after submission
+        self.result_label = QLabel("", self)
+        layout.addWidget(self.result_label)
+        
+        self.setLayout(layout)
+    
+    def process_input(self):
+        # Get the input text and display it in the label
+        user_input = self.input_field.text()
+        self.result_label.setText(f"You entered: {user_input}")
+        entity_editor.Save.save_scene_ui_to_toml(world.render2d, "./saves", user_input)
 
 #Toolbar functions
 def new_project():
@@ -359,6 +389,11 @@ def new_project():
 def save_file():
     world.messenger.send("save")
     print("Save file triggered")
+
+def save_ui_func():
+    Save_ui()
+    
+
 
 import toml
 
@@ -398,6 +433,8 @@ def load_project(world):
 def close(): #TODO when saving is introduced make a window pop up with save option(save don't save and don't exist(canel))
     """closing the editor"""
     exit()
+
+
 
 
 #-------------------
@@ -447,6 +484,10 @@ if __name__ == "__main__":
     action2.triggered.connect(lambda: load_project(world))
     edit_tool_type_menu.addAction(action2)
 
+    save_ui = QAction("Load Project", appw)
+    save_ui.triggered.connect(lambda: save_ui_func(world))
+    edit_tool_type_menu.addAction(save_ui)
+    
     action3 = QAction("Exit", appw)
     action3.triggered.connect(exit)
     edit_tool_type_menu.addAction(action3)
