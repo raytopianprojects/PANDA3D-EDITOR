@@ -157,7 +157,26 @@ class Drag_and_drop_ui_editor:
     def save_ui(self, name):
         entity_editor.Save.save_scene_ui_to_toml(self.world.render2d, "/saves/uis/" + name)
     def label(self, text, scale=0.1, pos=(0, 0, 0.5), parent=None, frameColor=(0.5, 0.5, 0.5, 1), text_fg=(1, 1, 1, 1)):
+        
+        
+        # Ensure 'scale' is in the correct format
+        if isinstance(scale, (int, float)):  # Uniform scale
+            scale = LVecBase3f(scale, scale, scale)
+        elif isinstance(scale, (list, tuple)) and len(scale) == 3:  # Non-uniform scale
+            scale = LVecBase3f(*scale)
+        elif not isinstance(scale, LVecBase3f):  # If invalid, default to uniform scale
+            scale = LVecBase3f(1, 1, 1)
 
+        # 'text' is a valid Panda3D text (convert if necessary)
+        if isinstance(text, dict):  # If `pos` is a dictionary, handle it
+            text = LPoint3(text.get('text', "tea time"))
+        # Ensure 'pos' is a valid Panda3D position (convert if necessary)
+        if isinstance(pos, dict):  # If `pos` is a dictionary, handle it
+            pos = LPoint3(pos.get('x', 0), pos.get('y', 0), pos.get('z', 0))
+        elif isinstance(pos, tuple):  # If it's a tuple, convert to LPoint3
+            pos = LPoint3(*pos)
+        
+        
         # Create a draggable label
         obj = DirectLabel(
             text=text,
@@ -169,8 +188,11 @@ class Drag_and_drop_ui_editor:
         )
         
         obj.set_python_tag("widget_type", "l")
+        obj.set_python_tag("obj", obj)
+        obj.set_python_tag("isCanvas", False)
+        obj.set_python_tag("isLabel", True)
         self.widgets.append(obj)
-        
+        return obj
         #label1.set_python_tag("widget_type", "l")
         
         

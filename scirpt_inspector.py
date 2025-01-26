@@ -177,14 +177,15 @@ class ScriptInspector(QWidget):
         
         if isLabel:
             def set_text(text):
-                node["Text"] = text
-                self.specials.setdefault(node, {})["__UIEditorLabel__"] = {"Text" : text}
+                direct_label = node.get_python_tag("obj")
+                direct_label["text"] = text
+                self.specials.setdefault(node, {})["__UIEditorLabel__"] = {"text" : text}
             input_field = QLineEdit("Label 1")
             input_field.setMaximumHeight(max_height)  # Set maximum height
             script_layout.addWidget(input_field)
             
             input_field.textChanged.connect(lambda text: set_text(text))
-            self.specials.setdefault(node, {})["__UIEditorLabel__"] = {"Text" : "Label 1"}
+            self.specials.setdefault(node, {})["__UIEditorLabel__"] = {"text" : "Label 1"}
             node.set_python_tag("specials", self.specials[node])
             data = node.get_python_tag("specials_properties") or {"__UIEditorLabel__"}
             node.set_python_tag("specials_properties", data)

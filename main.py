@@ -108,8 +108,7 @@ class PandaTest(Panda3DWorld):
         self.roll_seq = Sequence(Parallel(self.jump_up2, self.roll_left), Parallel(self.jump_down2, self.roll_right))
     
     def recreate_widget(self, text, scale, pos, parent):
-        uiEditor_inst.label(text, scale, pos, parent)
-    
+        return uiEditor_inst.label(text, scale, pos, parent)
     def make_hierarchy(self):
         self.hierarchy_tree = QTreeWidget()
         self.hierarchy_tree1 = QTreeWidget()
@@ -350,7 +349,7 @@ class Node:
         if path not in self.paths:
             self.paths.append(path)
 
-class Save_ui(QWidget):
+class Save_ui(QInputDialog):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Second Window")
@@ -361,26 +360,61 @@ class Save_ui(QWidget):
         
         # Input field
         self.input_field = QLineEdit(self)
-        self.input_field.setPlaceholderText("Enter some text...")
+        self.input_field.setPlaceholderText("untitled.ui")
         layout.addWidget(self.input_field)
         
         # Button to process the input
-        self.submit_button = QPushButton("Submit", self)
+        self.submit_button = QPushButton("Save", self)
         self.submit_button.clicked.connect(self.process_input)
         layout.addWidget(self.submit_button)
-        
-        # Label to display input after submission
-        self.result_label = QLabel("", self)
-        layout.addWidget(self.result_label)
         
         self.setLayout(layout)
     
     def process_input(self):
         # Get the input text and display it in the label
         user_input = self.input_field.text()
-        self.result_label.setText(f"You entered: {user_input}")
-        entity_editor.Save.save_scene_ui_to_toml(world.render2d, "./saves", user_input)
+        ent_editor = entity_editor.Save()
+        ent_editor.save_scene_ui_to_toml(world.render2d, "./saves/ui/", user_input)
 
+class Load_ui(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Second Window")
+        self.setGeometry(150, 150, 300, 200)
+
+        self.mesh_select = QComboBox(self)
+        self.mesh_select.currentIndexChanged.connect(self.set_selected)
+        
+        matching_files = []
+        for root, _, files in os.walk("./"):#FIXME this will be the project folder
+            for file in files:
+                if file.endswith(".ui"):  # Check file extension
+                    matching_files.append(os.path.join(root, file))
+                    self.mesh_select.addItem(file)
+        
+        
+        
+        # Layout for the second window
+        layout = QVBoxLayout()
+
+        
+        # Button to process the input
+        self.submit_button = QPushButton("Save", self)
+        self.submit_button.clicked.connect(self.process_input)
+        layout.addWidget(self.submit_button)
+        
+        self.setLayout(layout)
+        
+    def set_selected(self):
+        self.selected_text = self.mesh_select.currentText()
+
+    
+    def process_input(self):
+        global world
+        # Get the input text and display it in the label
+        #user_input = self.input_field.text()
+        entity_editor.Load(world).load_ui_from_folder_toml(self.selected_text, world.render2d)
+        
 #Toolbar functions
 def new_project():
     print("Open file triggered")
@@ -390,9 +424,19 @@ def save_file():
     world.messenger.send("save")
     print("Save file triggered")
 
+
+save_ui_instance = None
+load_ui_instance = None
+
 def save_ui_func():
-    Save_ui()
+    global save_ui_instance
+    save_ui_instance = Save_ui()
+    save_ui_instance.show()
     
+def load_ui_func():
+    global load_ui_instance
+    load_ui_instance = Load_ui()
+    load_ui_instance.show()
 
 
 import toml
@@ -484,9 +528,13 @@ if __name__ == "__main__":
     action2.triggered.connect(lambda: load_project(world))
     edit_tool_type_menu.addAction(action2)
 
-    save_ui = QAction("Load Project", appw)
-    save_ui.triggered.connect(lambda: save_ui_func(world))
+    save_ui = QAction("save ui", appw)
+    save_ui.triggered.connect(lambda: save_ui_func())
     edit_tool_type_menu.addAction(save_ui)
+    
+    load_ui = QAction("load ui", appw)
+    load_ui.triggered.connect(lambda: load_ui_func())
+    edit_tool_type_menu.addAction(load_ui)
     
     action3 = QAction("Exit", appw)
     action3.triggered.connect(exit)

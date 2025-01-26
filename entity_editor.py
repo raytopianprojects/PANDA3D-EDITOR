@@ -26,7 +26,7 @@ class Load:
 
         entities = []
         
-        with open(input_folder, "r"):
+        with open(input_folder, "r") as file:
             input_folder = file.read().strip()
 
         # Iterate over all TOML files in the input folder
@@ -50,44 +50,36 @@ class Load:
                 transform = entity_data.get("transform", {})
                 properties = entity_data.get("properties", {})
                 #TODO load UI object to ui editor
-                if model_path and os.path.exists(model_path):
-                    entity_node = self.world.loader.load_model(os.path.relpath(model_path))
-                    if entity_node:
-                        entity_node.set_name(name)
-                        entity_node.reparent_to(root_node)
-                        print(f"Model loaded and attached for {name}: {model_path}")
-                    else:
-                        print(f"Failed to load model for {name} from {model_path}")
-                        continue
-                else:
-                    print(f"Model path invalid or not found for {name}: {model_path}")
-                    continue
+                
 
                 # Set transformation properties
                 position = transform.get("position", {"x": 0, "y": 0, "z": 0})
                 rotation = transform.get("rotation", {"h": 0, "p": 0, "r": 0})
-                scale = transform.get("scale", {"x": 1, "y": 1, "z": 1})
-                parent = properties.get("parent", None)
-                entity_node.set_pos(position["x"], position["y"], position["z"])
-                entity_node.set_hpr(rotation["h"], rotation["p"], rotation["r"])
-                entity_node.set_scale(scale["x"], scale["y"], scale["z"])
+                scale = transform.get("scale", {"x": 0.1, "y": 0.1, "z": 0.1})
+                parent = properties.get("parent", self.world.render2d)
                 script_paths = properties.get("script_paths", "")
                 s_property = properties.get("script_properties", "")
 
+                if widget_type == "l":
+                    self.widget = self.world.recreate_widget(text, scale, position, parent)
+                    self.widget.set_python_tag("widget_type", "l")
+                    
+                if widget_type == None:
+                    self.widget = NodePath("None")
+                    
                 # Set properties
                 for key, value in properties.items():
-                    entity_node.set_python_tag(key, value)
-                    self.world.populate_hierarchy(self.world.hierarchy_tree, entity_node, parent)
+                    self.widget.set_python_tag(key, value)
+                self.world.hierarchy_tree1.clear()
+                self.world.populate_hierarchy(self.world.hierarchy_tree1, self.world.render2d)
                 for s in script_paths:
                     prop = {}
 
                     for attr, value in s_property.items():
                         prop[attr] = (value)
                         print("iiii:", value)
-                        self.world.script_inspector.set_script(os.path.relpath(s), entity_node, prop)
+                        self.world.script_inspector.set_script(os.path.relpath(s), self.widget, prop)
                     prop.clear()
-                if widget_type == "l":
-                    self.world.recreate_widget(text, scale, position, parent)
                 # Append entity data to the list
                 entities.append({
                     "name": name,
@@ -203,6 +195,8 @@ class Load:
 
 
 class Save():
+    def __init__(self):
+        pass
     def save_scene_to_toml(self, root_node: NodePath, output_folder: str):
         """
         Traverse the scene graph, extract entity data, and save each entity to a TOML file.
@@ -293,7 +287,7 @@ class Save():
                 # Get custom properties
                 properties = {}
                 for key in tags:
-                    if key not in ("id", "pos", "hpr", "scale", "scripts"):  # Exclude transform tags
+                    if key not in ("id", "pos", "hpr", "scale", "scripts", "text", "image", "parent", "action"):  # Exclude transform tags
                         properties[key] = node.get_python_tag(key)
 
                 # Create a dictionary to store entity data
@@ -301,18 +295,17 @@ class Save():
                     "name": node.get_name(),
                     "id": entity_id,
                     "widget_type": widget_type,
+                    "text" : text,
                     "type": "script",
+                    "action" : action,
+                    "image" : image,
+                    "parent" : parent,
                     "transform": {
                         "position": {"x": position.x, "y": position.y, "z": position.z},
                         "rotation": {"h": rotation.x, "p": rotation.y, "r": rotation.z},
                         "scale": {"x": scale.x, "y": scale.y, "z": scale.z},
                     },
                     "properties": properties,
-                    "action" : action,
-                    "text" : text,
-                    "image" : image,
-                    "text" : widget_type,
-                    "parent" : parent,
                 }
 
                 # Convert dictionary to TOML string
