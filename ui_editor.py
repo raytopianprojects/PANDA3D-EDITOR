@@ -41,6 +41,8 @@ class Drag_and_drop_ui_editor:
         # Create UI elements
         #self.label("hello world!", 0.1, parent=world.canvas)
         print("hello world")
+        
+        self.grid = False
     
     def tab_content(self, viewport_tab, world):
         viewport_layout = QVBoxLayout(viewport_tab)
@@ -119,12 +121,19 @@ class Drag_and_drop_ui_editor:
                 self.input_boxes[(i, j)] = self.input_box
                 self.grid_layout.addWidget(label1, i * 2, j)  # Add label in a separate row
                 self.grid_layout.addWidget(self.input_box, i * 2 + 1, j)  # Add input box below the label
+                
+        
 
         # Add the grid widget to the main layout
         right_panel.layout().addWidget(grid_widget)
+        grid_check = QCheckBox(grid_widget)
+        grid_check.setText("Enable Grid")
+        grid_check.stateChanged.connect(self.toggle_grid)
 
         viewport_splitter.addWidget(right_panel)
         return viewport_splitter
+    def toggle_grid(self):
+        self.grid = not self.grid
     def attach_collision_to_widget(self, widget):
         # Define corners of a rectangle in the widget's coordinate space.
         # Adjust coordinates as necessary to match widget size/position.
@@ -160,12 +169,12 @@ class Drag_and_drop_ui_editor:
         
         
         # Ensure 'scale' is in the correct format
-        if isinstance(scale, (int, float)):  # Uniform scale
-            scale = LVecBase3f(scale, scale, scale)
-        elif isinstance(scale, (list, tuple)) and len(scale) == 3:  # Non-uniform scale
-            scale = LVecBase3f(*scale)
+        if isinstance(scale, (int, dict)):  # Uniform scale
+            scale = LVecBase3f(scale.get('x', 0), scale.get('y', 0), scale.get('z', 0))
+        elif isinstance(scale, (list, dict)) and len(scale) == 3:  # Non-uniform scale
+            scale = LVecBase3f(scale.get('x', 0), scale.get('y', 0), scale.get('z', 0))
         elif not isinstance(scale, LVecBase3f):  # If invalid, default to uniform scale
-            scale = LVecBase3f(1, 1, 1)
+            scale = LVecBase3f(0.1, 0.1, 0.1)
 
         # 'text' is a valid Panda3D text (convert if necessary)
         if isinstance(text, dict):  # If `pos` is a dictionary, handle it
@@ -191,6 +200,7 @@ class Drag_and_drop_ui_editor:
         obj.set_python_tag("obj", obj)
         obj.set_python_tag("isCanvas", False)
         obj.set_python_tag("isLabel", True)
+        obj.set_python_tag("isButton", False)
         self.widgets.append(obj)
         return obj
         #label1.set_python_tag("widget_type", "l")
@@ -204,7 +214,24 @@ class Drag_and_drop_ui_editor:
         #self.draggable_button.bind(DGG.B1RELEASE, self.stop_drag)
         #self.label1.bind(DGG.B1RELEASE, self.stop_drag)
     def button(self, text, scale=0.1, pos=(0, 0, 0.5), parent=None, frameColor=(0.5, 0.5, 0.5, 1), text_fg=(1, 1, 1, 1)):
+        
+        # Ensure 'scale' is in the correct format
+        if isinstance(scale, (int, dict)):  # Uniform scale
+            scale = LVecBase3f(scale.get('x', 0), scale.get('y', 0), scale.get('z', 0))
+        elif isinstance(scale, (list, dict)) and len(scale) == 3:  # Non-uniform scale
+            scale = LVecBase3f(scale.get('x', 0), scale.get('y', 0), scale.get('z', 0))
+        elif not isinstance(scale, LVecBase3f):  # If invalid, default to uniform scale
+            scale = LVecBase3f(0.1, 0.1, 0.1)
 
+        # 'text' is a valid Panda3D text (convert if necessary)
+        if isinstance(text, dict):  # If `pos` is a dictionary, handle it
+            text = LPoint3(text.get('text', "tea time"))
+        # Ensure 'pos' is a valid Panda3D position (convert if necessary)
+        if isinstance(pos, dict):  # If `pos` is a dictionary, handle it
+            pos = LPoint3(pos.get('x', 0), pos.get('y', 0), pos.get('z', 0))
+        elif isinstance(pos, tuple):  # If it's a tuple, convert to LPoint3
+            pos = LPoint3(*pos)
+        
         # Create a draggable label
         obj = DirectButton(
             text=text,
@@ -216,9 +243,15 @@ class Drag_and_drop_ui_editor:
         )
          
         obj.set_python_tag("widget_type", "b")
+        obj.set_python_tag("obj", obj)
+        obj.set_python_tag("isCanvas", False)
+        obj.set_python_tag("isLabel", False)
+        obj.set_python_tag("isButton", True)
 
         
         self.widgets.append(obj)
+        
+        return obj
         # Bind events for dragging (for both elements)
         #self.draggable_button.bind(DGG.B1PRESS, self.start_drag, extraArgs=[self.draggable_button, self.label1])
         #self.label1.bind(DGG.B1PRESS, self.start_drag, extraArgs=[self.draggable_button, self.label1])
@@ -254,10 +287,12 @@ class Drag_and_drop_ui_editor:
             nodepaths.append(node)
         return nodepaths
 
-    def create_widget(self, widget_type, text, id):
-        if widget_type == "label":
+    def create_widget(self, widget_type, text):
+        if widget_type == "l":
             self.label(text)
-        elif widget_type == "image":
+        if widget_type == "b":
+            self.button(text)
+        elif widget_type == "i":
             self.Frame(text)
         return self.get_all_2d_nodes()
 
@@ -342,7 +377,13 @@ class Drag_and_drop_ui_editor:
     
     def move_widget(self, hit_node_path, task):
         pMouse = self.world.mouseWatcherNode.getMouse()
-        hit_node_path.setPos(Vec3(pMouse[0], 0, pMouse[1]))
+        if self.grid:
+            grid_size = 0.1  # Adjust this to your desired grid size
+        else:
+            grid_size = 0.01
+        snap_x = round(pMouse[0] / grid_size) * grid_size
+        snap_y = round(pMouse[1] / grid_size) * grid_size
+        hit_node_path.setPos(Vec3(snap_x, 0, snap_y))
         hit_node_path.getParent().setPos(Vec3(pMouse[0], 0, pMouse[1]))
         return task.cont if self.holding else task.done
     

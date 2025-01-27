@@ -49,8 +49,11 @@ class Load:
 
                 transform = entity_data.get("transform", {})
                 properties = entity_data.get("properties", {})
+                isCanvas = entity_data.get("isCanvas", False)
+                isLabel = entity_data.get("isLabel", False)
+                isButton = entity_data.get("isButton", False)
+                isImage = entity_data.get("isImage", False)
                 #TODO load UI object to ui editor
-                
 
                 # Set transformation properties
                 position = transform.get("position", {"x": 0, "y": 0, "z": 0})
@@ -283,11 +286,27 @@ class Save():
                 text = node.get_python_tag("text")
                 image = node.get_python_tag("image")
                 parent = node.get_python_tag("parent")
+                isCanvas = node.get_python_tag("isCanvas")
+                isLabel = node.get_python_tag("isLabel")
+                isButton = node.get_python_tag("isButton")
+                isImage = node.get_python_tag("isImage")
                 
                 # Get custom properties
                 properties = {}
                 for key in tags:
-                    if key not in ("id", "pos", "hpr", "scale", "scripts", "text", "image", "parent", "action"):  # Exclude transform tags
+                    if key not in ("id",
+                                   "pos",
+                                   "hpr",
+                                   "scale",
+                                   "scripts",
+                                   "text",
+                                   "image",
+                                   "parent",
+                                   "action",
+                                   "isCanvas",
+                                   "isLabel",
+                                   "isButton",
+                                   "isImage"):  # Exclude transform tags
                         properties[key] = node.get_python_tag(key)
 
                 # Create a dictionary to store entity data
@@ -306,6 +325,10 @@ class Save():
                         "scale": {"x": scale.x, "y": scale.y, "z": scale.z},
                     },
                     "properties": properties,
+                    "isCanvas": isCanvas,
+                    "isLabel": isLabel,
+                    "isButton": isButton,
+                    "isImage": isImage,
                 }
 
                 # Convert dictionary to TOML string

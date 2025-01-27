@@ -2,6 +2,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from panda3d.core import *
+from direct.gui.DirectGui import DirectButton, DirectLabel
 from direct.showbase.DirectObject import DirectObject
 import os
 import importlib
@@ -153,6 +154,17 @@ class ScriptInspector(QWidget):
         max_height = 30  # Maximum height for input fields
         spacing = 30  # Space between items
         
+        wt = node.getPythonTag("widget_type")
+        
+        print("wt:      ", wt)
+        
+        if wt == "l":
+            isLabel = True
+            isCanvas = False
+        elif wt == "c":
+            isLabel = False
+            isCanvas = True
+        
         if isCanvas:
             def make_label():
                 ui_editor.Drag_and_drop_ui_editor.label(instance, text="Label 1", parent=w.render2d)
@@ -178,9 +190,15 @@ class ScriptInspector(QWidget):
         if isLabel:
             def set_text(text):
                 direct_label = node.get_python_tag("obj")
+                direct_label = self.world.render2d.find(f"**/{direct_label}")
                 direct_label["text"] = text
                 self.specials.setdefault(node, {})["__UIEditorLabel__"] = {"text" : text}
-            input_field = QLineEdit("Label 1")
+            direct_label = node.getPythonTag("obj")
+            #direct_label = self.world.render2d.find(f"**/{direct_label}")
+            
+            # Ensure it's a valid DirectLabel
+            label_text = direct_label["text"]  # Access the text property
+            input_field = QLineEdit(label_text)  # Create the input field with the text
             input_field.setMaximumHeight(max_height)  # Set maximum height
             script_layout.addWidget(input_field)
             
