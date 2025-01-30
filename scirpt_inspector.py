@@ -157,17 +157,46 @@ class ScriptInspector(QWidget):
         wt = node.getPythonTag("widget_type")
         
         print("wt:      ", wt)
+        isButton = None
+        isFrame = None
         
         if wt == "l":
             isLabel = True
             isCanvas = False
+            isButton = False
+            isImage = False
+        elif wt == "b":
+            isLabel = False
+            isCanvas = False
+            isButton = True
+            isImage = False
+        elif wt == "i":
+            isLabel = False
+            isCanvas = False
+            isButton = False
+            isImage = True
         elif wt == "c":
             isLabel = False
             isCanvas = True
-        
+            isButton = False
+            isImage = False
         if isCanvas:
             def make_label():
-                ui_editor.Drag_and_drop_ui_editor.label(instance, text="Label 1", parent=w.render2d)
+                ui_editor.Drag_and_drop_ui_editor.label(instance, text1="Label 1", parent1=w.render2d)
+                w.hierarchy_tree.clear()
+                w.hierarchy_tree1.clear()
+
+                w.populate_hierarchy(w.hierarchy_tree, w.render)
+                w.populate_hierarchy(w.hierarchy_tree1, w.render2d)
+            def make_button():
+                ui_editor.Drag_and_drop_ui_editor.button(instance, text="Button 1", parent=w.render2d)
+                w.hierarchy_tree.clear()
+                w.hierarchy_tree1.clear()
+
+                w.populate_hierarchy(w.hierarchy_tree, w.render)
+                w.populate_hierarchy(w.hierarchy_tree1, w.render2d)
+            def make_image():
+                ui_editor.Drag_and_drop_ui_editor.Frame(instance, image="./python_img.png", parent1=w.render2d)
                 w.hierarchy_tree.clear()
                 w.hierarchy_tree1.clear()
 
@@ -175,10 +204,16 @@ class ScriptInspector(QWidget):
                 w.populate_hierarchy(w.hierarchy_tree1, w.render2d)
 
             create_label = QPushButton("Create Label")
+            create_button = QPushButton("Create button")
+            create_image = QPushButton("Create image")
             
             script_layout.addWidget(create_label)
+            script_layout.addWidget(create_button)
+            script_layout.addWidget(create_image)
 
             create_label.clicked.connect(make_label)
+            create_button.clicked.connect(make_button)
+            create_image.clicked.connect(make_image)
             
             self.specials.setdefault(node, {})["__UIEditorCanvas__"] = {}
             node.set_python_tag("specials", self.specials[node])
@@ -188,26 +223,232 @@ class ScriptInspector(QWidget):
             
         
         if isLabel:
+            def open_color_picker():
+                # Open the color picker dialog
+                color = QColorDialog.getColor()
+    
+                if color.isValid():  # Check if a color was selected
+                    # Get RGB values
+                    r, g, b, _ = color.getRgbF()
+                    print(f"Selected Color - R: {r}, G: {g}, B: {b}")
+    
+                    # Set the color as the button's background
+                    
+                    
+
+                    direct_label["frameColor"] = (r, g, b, 1.0)
+                
+                    direct_label.set_python_tag("frameColor1", {"r" : r, "g" : g, "b" : b})
+                    self.color_display1.setStyleSheet(f"background-color: {color.name()};")
+
+                    self.specials.setdefault(node, {})["__UIEditorLabel__"] = {"text" : "Label 1"}
+                    node.set_python_tag("specials", self.specials[node])
+                    data = node.get_python_tag("specials_properties") or {"__UIEditorLabel__"}
+                    node.set_python_tag("specials_properties", data)
+                    node.set_python_tag("id", str(uuid.uuid4())[:8])
+            def update_font(text):
+                if os.path.exists(text):
+                    custom_font = loader.loadFont(text)
+                    direct_label["text_font"] = custom_font
+            def open_color_picker_fgcolor():
+                # Open the color picker dialog
+                color = QColorDialog.getColor()
+    
+                if color.isValid():  # Check if a color was selected
+                    # Get RGB values
+                    r, g, b, _ = color.getRgbF()
+                    print(f"Selected Color - R: {r}, G: {g}, B: {b}")
+    
+                    # Set the color as the button's background
+                    
+                    direct_label["text_fg"] = (r, g, b, 1.0)
+                
+                    direct_label.set_python_tag("text_fg1", {"r" : r, "g" : g, "b" : b})
+                    self.color_display.setStyleSheet(f"background-color: {color.name()};")
+                    
+                    self.specials.setdefault(node, {})["__UIEditorLabel__"] = {"text" : "Label 1"}
+                    node.set_python_tag("specials", self.specials[node])
+                    data = node.get_python_tag("specials_properties") or {"__UIEditorLabel__"}
+                    node.set_python_tag("specials_properties", data)
+                    node.set_python_tag("id", str(uuid.uuid4())[:8])
+            def set_selected():
+                self.selected_text = f_select.currentText()
+                update_font(self.selected_text)
             def set_text(text):
-                direct_label = node.get_python_tag("obj")
-                direct_label = self.world.render2d.find(f"**/{direct_label}")
+                direct_label = node.get_python_tag("ui_reference")
                 direct_label["text"] = text
                 self.specials.setdefault(node, {})["__UIEditorLabel__"] = {"text" : text}
-            direct_label = node.getPythonTag("obj")
+            direct_label = node.get_python_tag("ui_reference")
             #direct_label = self.world.render2d.find(f"**/{direct_label}")
-            
+            print(type(node))
             # Ensure it's a valid DirectLabel
             label_text = direct_label["text"]  # Access the text property
             input_field = QLineEdit(label_text)  # Create the input field with the text
+            input_field.textChanged.connect(lambda text: set_text(text))
             input_field.setMaximumHeight(max_height)  # Set maximum height
             script_layout.addWidget(input_field)
             
-            input_field.textChanged.connect(lambda text: set_text(text))
+            l = Label("Drop font here", None)
+            l.textChanged.connect(lambda text: update_font(text))
+            script_layout.addWidget(l)
+
+            
+            f_select = QComboBox(self)
+            script_layout.addWidget(f_select)
+            f_select.currentIndexChanged.connect(set_selected)
+
+            matching_files = []
+            for root, _, files in os.walk("./"):#FIXME this will be the project folder
+                for file in files:
+                    if file.endswith(".ttf"):  # Check file extension
+                        matching_files.append(os.path.join(root, file))
+                        f_select.addItem(file)
+            
+            
+            
+            # Button to open color picker
+            self.color_button1 = QPushButton("Pick a Background Color")
+            isFrame = True
+            self.color_button1.clicked.connect(lambda isFrame=isFrame: open_color_picker())
+            script_layout.addWidget(self.color_button1)
+            
+            # Label to display selected color
+            self.color_display1 = QPushButton("Selected Color")
+            color1 = direct_label["frameColor"]
+            hex_color1 = '#%02x%02x%02x' % (int(color1[0] * 255), int(color1[1] * 255), int(color1[2] * 255))
+            self.color_display1.setStyleSheet(f"background-color: #{hex_color1[1:9]};")
+            script_layout.addWidget(self.color_display1)
+            
+            isFrame1 = False
+
+            # Button to open color picker
+            self.color_button = QPushButton("Pick a Foreground Color")
+            self.color_button.clicked.connect(lambda isFrame1=isFrame1: open_color_picker_fgcolor())
+            script_layout.addWidget(self.color_button)
+            
+            # Label to display selected color
+            self.color_display = QPushButton("Selected Color")
+            color = direct_label.getPythonTag("text_fg1")
+            hex_color = '#%02x%02x%02x' % (int(color["r"] * 255), int(color["g"] * 255), int(color["b"] * 255))
+            self.color_display.setStyleSheet(f"background-color: #{hex_color[1:9]};")
+            script_layout.addWidget(self.color_display)
+            
             self.specials.setdefault(node, {})["__UIEditorLabel__"] = {"text" : "Label 1"}
             node.set_python_tag("specials", self.specials[node])
             data = node.get_python_tag("specials_properties") or {"__UIEditorLabel__"}
             node.set_python_tag("specials_properties", data)
             node.set_python_tag("id", str(uuid.uuid4())[:8])
+        if isButton:
+            def set_selected():
+                self.selected_text = f_select.currentText()
+                update_font(self.selected_text)
+            def open_color_picker():
+                # Open the color picker dialog
+                color = QColorDialog.getColor()
+    
+                if color.isValid():  # Check if a color was selected
+                    # Get RGB values
+                    r, g, b, _ = color.getRgbF()
+                    print(f"Selected Color - R: {r}, G: {g}, B: {b}")
+    
+                    # Set the color as the button's background
+                    
+                    
+
+                    direct_Button["frameColor"] = (r, g, b, 1.0)
+                
+                    direct_Button.set_python_tag("frameColor1", {"r" : r, "g" : g, "b" : b})
+                    self.color_display1.setStyleSheet(f"background-color: {color.name()};")
+
+                    node.set_python_tag("specials_properties", data)
+                    node.set_python_tag("id", str(uuid.uuid4())[:8])
+            def update_font(text):
+                if os.path.exists(text):
+                    custom_font = loader.loadFont(text)
+                    direct_Button["text_font"] = custom_font
+            def open_color_picker_fgcolor():
+                # Open the color picker dialog
+                color = QColorDialog.getColor()
+    
+                if color.isValid():  # Check if a color was selected
+                    # Get RGB values
+                    r, g, b, _ = color.getRgbF()
+                    print(f"Selected Color - R: {r}, G: {g}, B: {b}")
+    
+                    # Set the color as the button's background
+                    
+                    direct_Button["text_fg"] = (r, g, b, 1.0)
+                
+                    direct_label.set_python_tag("text_fg1", {"r" : r, "g" : g, "b" : b})
+                    self.color_display.setStyleSheet(f"background-color: {color.name()};")
+                    
+
+
+                    node.set_python_tag("specials_properties", data)
+                    node.set_python_tag("id", str(uuid.uuid4())[:8])
+            def set_text(text):
+                direct_Button = node.get_python_tag("ui_reference")
+                direct_Button["text"] = text
+                self.specials.setdefault(node, {})["__UIEditorButton__"] = {"text" : text}
+            direct_Button = node.get_python_tag("ui_reference")
+            #direct_Button = self.world.render2d.find(f"**/{direct_Button}")
+            print(type(node))
+            # Ensure it's a valid direct_Button
+            button_text = direct_Button["text"]  # Access the text property
+            input_field = QLineEdit(button_text)  # Create the input field with the text
+            input_field.textChanged.connect(lambda text: set_text(text))
+            input_field.setMaximumHeight(max_height)  # Set maximum height
+            script_layout.addWidget(input_field)
+            
+            l = Label("Drop font here", None)
+            l.textChanged.connect(lambda text: update_font(text))
+
+            script_layout.addWidget(l)
+            
+            f_select = QComboBox(self)
+            script_layout.addWidget(f_select)
+            f_select.currentIndexChanged.connect(set_selected)
+
+            matching_files = []
+            for root, _, files in os.walk("./"):#FIXME this will be the project folder
+                for file in files:
+                    if file.endswith(".ttf"):  # Check file extension
+                        matching_files.append(os.path.join(root, file))
+                        f_select.addItem(file)
+            
+            # Button to open color picker
+            self.color_button1 = QPushButton("Pick a Background Color")
+            isFrame = True
+            self.color_button1.clicked.connect(lambda isFrame=isFrame: open_color_picker())
+            script_layout.addWidget(self.color_button1)
+            
+            # Label to display selected color
+            self.color_display1 = QPushButton("Selected Color")
+            color1 = direct_Button["frameColor"]
+            hex_color1 = '#%02x%02x%02x' % (int(color1[0] * 255), int(color1[1] * 255), int(color1[2] * 255))
+            self.color_display1.setStyleSheet(f"background-color: #{hex_color1[1:9]};")
+            script_layout.addWidget(self.color_display1)
+            
+            isFrame1 = False
+
+            # Button to open color picker
+            self.color_button = QPushButton("Pick a Foreground Color")
+            self.color_button.clicked.connect(lambda isFrame1=isFrame1: open_color_picker_fgcolor())
+            script_layout.addWidget(self.color_button)
+            
+            # Label to display selected color
+            self.color_display = QPushButton("Selected Color")
+            color = direct_Button.getPythonTag("text_fg1")
+            hex_color = '#%02x%02x%02x' % (int(color["r"] * 255), int(color["g"] * 255), int(color["b"] * 255))
+            self.color_display.setStyleSheet(f"background-color: #{hex_color[1:9]};")
+            script_layout.addWidget(self.color_display)
+            
+            self.specials.setdefault(node, {})["__UIEditorButton__"] = {"text" : "Button 1"}
+            node.set_python_tag("specials", self.specials[node])
+            data = node.get_python_tag("specials_properties") or {"__UIEditorButton__"}
+            node.set_python_tag("specials_properties", data)
+            node.set_python_tag("id", str(uuid.uuid4())[:8])
+
             
         
         

@@ -27,6 +27,7 @@ import scirpt_inspector
 import qdarktheme
 from direct.gui.DirectGui import DirectButton, DirectLabel, DirectFrame
 from direct.gui import DirectGuiGlobals as DGG
+import input_manager
 
 
 class PandaTest(Panda3DWorld):
@@ -107,8 +108,10 @@ class PandaTest(Panda3DWorld):
         self.roll_right = self.panda.hprInterval(1.0, Point3(0, 0, 0))
         self.roll_seq = Sequence(Parallel(self.jump_up2, self.roll_left), Parallel(self.jump_down2, self.roll_right))
     
-    def recreate_widget(self, text, scale, pos, parent):
-        return uiEditor_inst.label(text, scale, pos, parent)
+    def recreate_widget(self, text, frameColor, text_fg, scale, pos, parent):
+        return uiEditor_inst.label(text, scale, pos, parent, frameColor, text_fg)
+    def recreate_button(self, text, frameColor, text_fg, scale, pos, parent):
+        return uiEditor_inst.button(text, scale, pos, parent, frameColor, text_fg)
     def make_hierarchy(self):
         self.hierarchy_tree = QTreeWidget()
         self.hierarchy_tree1 = QTreeWidget()
@@ -360,6 +363,7 @@ class Save_ui(QInputDialog):
         
         # Input field
         self.input_field = QLineEdit(self)
+        self.input_field.setText("untitled.ui")
         self.input_field.setPlaceholderText("untitled.ui")
         layout.addWidget(self.input_field)
         
@@ -375,6 +379,8 @@ class Save_ui(QInputDialog):
         user_input = self.input_field.text()
         ent_editor = entity_editor.Save()
         ent_editor.save_scene_ui_to_toml(world.render2d, "./saves/ui/", user_input)
+        
+        
 
 class Load_ui(QWidget):
     def __init__(self):
@@ -478,8 +484,18 @@ def close(): #TODO when saving is introduced make a window pop up with save opti
     """closing the editor"""
     exit()
 
+network_manager = input_manager.NetworkManager()
+input_manager_c = input_manager.InputManager(network_manager)
+input_settings = None
+def show_input_manager():
+    global input_settings
+    input_settings = input_manager.InputSettingsWindow(input_manager_c)
+    input_settings.show()
 
-
+def play_mode():
+    import Preview_build
+    app = Preview_build.GamePreviewApp()
+    app.run()
 
 #-------------------
 #Terrain Generation
@@ -524,6 +540,15 @@ if __name__ == "__main__":
     action1.setShortcut(QKeySequence("Ctrl+S"))
     edit_tool_type_menu.addAction(action1)
 
+    action3 = QAction("play game", appw)
+    action3.triggered.connect(play_mode)
+    action3.setShortcut(QKeySequence("F5"))
+    edit_tool_type_menu.addAction(action3)
+    
+    actionI = QAction("input manager", appw)
+    actionI.triggered.connect(show_input_manager)
+    edit_tool_type_menu.addAction(actionI)
+    
     action2 = QAction("Load Project", appw)
     action2.triggered.connect(lambda: load_project(world))
     edit_tool_type_menu.addAction(action2)

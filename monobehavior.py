@@ -1,6 +1,7 @@
 # monobehavior.py
 
 from direct.task import Task
+from main import input_manager_c
 
 class MonoBehavior:
     def __init__(self, node):
@@ -12,6 +13,9 @@ class MonoBehavior:
         self.started = False
         self.__builtin__ = False 
         taskMgr.add(self._update_task, f"update_{id(self)}")
+        input_manager_c.register_behavior(self)
+        
+    
 
     def start(self):
         """Called once before the first update."""

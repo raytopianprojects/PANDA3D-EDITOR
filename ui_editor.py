@@ -165,44 +165,52 @@ class Drag_and_drop_ui_editor:
         entity_editor.Load.load_ui_from_folder_toml()
     def save_ui(self, name):
         entity_editor.Save.save_scene_ui_to_toml(self.world.render2d, "/saves/uis/" + name)
-    def label(self, text, scale=0.1, pos=(0, 0, 0.5), parent=None, frameColor=(0.5, 0.5, 0.5, 1), text_fg=(1, 1, 1, 1)):
+    def label(self, text1, scale1=0.1, pos1=(0, 0, 0.5), parent1=None, frameColor1=(0.5, 0.5, 0.5, 1), text_fg1=(1, 1, 1, 1)):
         
-        
+        # Ensure 'frameColor' is in the correct format
+        if isinstance(frameColor1, dict):  # Uniform scale
+            frameColor1 = (frameColor1.get('r', 0), frameColor1.get('g', 0), frameColor1.get('b', 0), 1.0)
+        # Ensure 'text_fg' is in the correct format
+        if isinstance(text_fg1, dict):  # Uniform scale
+            text_fg1 = (text_fg1.get('r', 0), text_fg1.get('g', 0), text_fg1.get('b', 0), 1.0)
         # Ensure 'scale' is in the correct format
-        if isinstance(scale, (int, dict)):  # Uniform scale
-            scale = LVecBase3f(scale.get('x', 0), scale.get('y', 0), scale.get('z', 0))
-        elif isinstance(scale, (list, dict)) and len(scale) == 3:  # Non-uniform scale
-            scale = LVecBase3f(scale.get('x', 0), scale.get('y', 0), scale.get('z', 0))
-        elif not isinstance(scale, LVecBase3f):  # If invalid, default to uniform scale
-            scale = LVecBase3f(0.1, 0.1, 0.1)
+        if isinstance(scale1, (int, dict)):  # Uniform scale
+            scale1 = LVecBase3f(scale1.get('x', 0), scale1.get('y', 0), scale1.get('z', 0))
+        elif isinstance(scale1, (list, dict)) and len(scale1) == 3:  # Non-uniform scale
+            scale1 = LVecBase3f(scale1.get('x', 0), scale1.get('y', 0), scale1.get('z', 0))
+        elif not isinstance(scale1, LVecBase3f):  # If invalid, default to uniform scale
+            scale1 = LVecBase3f(0.1, 0.1, 0.1)
 
         # 'text' is a valid Panda3D text (convert if necessary)
-        if isinstance(text, dict):  # If `pos` is a dictionary, handle it
-            text = LPoint3(text.get('text', "tea time"))
+        if isinstance(text1, dict):  # If `pos` is a dictionary, handle it
+            text1 = LPoint3(text1.get('text1', "tea time"))
         # Ensure 'pos' is a valid Panda3D position (convert if necessary)
-        if isinstance(pos, dict):  # If `pos` is a dictionary, handle it
-            pos = LPoint3(pos.get('x', 0), pos.get('y', 0), pos.get('z', 0))
-        elif isinstance(pos, tuple):  # If it's a tuple, convert to LPoint3
-            pos = LPoint3(*pos)
+        if isinstance(pos1, dict):  # If `pos` is a dictionary, handle it
+            pos1 = LPoint3(pos1.get('x', 0), pos1.get('y', 0), pos1.get('z', 0))
+        elif isinstance(pos1, tuple):  # If it's a tuple, convert to LPoint3
+            pos1 = LPoint3(*pos1)
         
+        print(text1)
         
         # Create a draggable label
-        obj = DirectLabel(
-            text=text,
-            scale=scale,
-            pos=pos,
-            parent=parent,
-            frameColor=frameColor,
-            text_fg=text_fg,
+        ui_reference1 = DirectLabel(
+            text=text1,
+            scale=scale1,
+            pos=pos1,
+            parent=self.world.render2d,
+            frameColor=frameColor1,
+            text_fg=text_fg1,
         )
         
-        obj.set_python_tag("widget_type", "l")
-        obj.set_python_tag("obj", obj)
-        obj.set_python_tag("isCanvas", False)
-        obj.set_python_tag("isLabel", True)
-        obj.set_python_tag("isButton", False)
-        self.widgets.append(obj)
-        return obj
+        ui_reference1.setPythonTag("widget_type", "l")
+        ui_reference1.setPythonTag("ui_reference", ui_reference1)
+        ui_reference1.setPythonTag("frameColor1", {"r" : frameColor1[0], "g" : frameColor1[1], "b" : frameColor1[2]})
+        ui_reference1.setPythonTag("text_fg1", {"r" : text_fg1[0], "g" : text_fg1[1], "b" : text_fg1[2]})
+        ui_reference1.setPythonTag("isCanvas", False)
+        ui_reference1.setPythonTag("isLabel", True)
+        ui_reference1.setPythonTag("isButton", False)
+        self.widgets.append(ui_reference1)
+        return ui_reference1
         #label1.set_python_tag("widget_type", "l")
         
         
@@ -213,7 +221,7 @@ class Drag_and_drop_ui_editor:
         #self.label1.bind(DGG.B1PRESS, self.start_drag, extraArgs=[self.draggable_button, self.label1])
         #self.draggable_button.bind(DGG.B1RELEASE, self.stop_drag)
         #self.label1.bind(DGG.B1RELEASE, self.stop_drag)
-    def button(self, text, scale=0.1, pos=(0, 0, 0.5), parent=None, frameColor=(0.5, 0.5, 0.5, 1), text_fg=(1, 1, 1, 1)):
+    def button(self, text, scale=0.1, pos=(0, 0, 0.5), parent=None, frameColor=(0.5, 0.5, 0.5, 1), text_fg=(1.0, 1.0, 1.0, 1.0)):
         
         # Ensure 'scale' is in the correct format
         if isinstance(scale, (int, dict)):  # Uniform scale
@@ -229,11 +237,15 @@ class Drag_and_drop_ui_editor:
         # Ensure 'pos' is a valid Panda3D position (convert if necessary)
         if isinstance(pos, dict):  # If `pos` is a dictionary, handle it
             pos = LPoint3(pos.get('x', 0), pos.get('y', 0), pos.get('z', 0))
+        if isinstance(frameColor, dict):  # Uniform scale
+            frameColor = (frameColor.get('r', 0), frameColor.get('g', 0), frameColor.get('b', 0), 1.0)
+        if isinstance(text_fg, dict):  # If `pos` is a dictionary, handle it
+            text_fg = (text_fg.get('r', 0), text_fg.get('g', 0), text_fg.get('b', 0), 1.0)
         elif isinstance(pos, tuple):  # If it's a tuple, convert to LPoint3
             pos = LPoint3(*pos)
         
         # Create a draggable label
-        obj = DirectButton(
+        ui_reference1 = DirectButton(
             text=text,
             scale=scale,
             pos=pos,
@@ -242,41 +254,42 @@ class Drag_and_drop_ui_editor:
             text_fg=text_fg,
         )
          
-        obj.set_python_tag("widget_type", "b")
-        obj.set_python_tag("obj", obj)
-        obj.set_python_tag("isCanvas", False)
-        obj.set_python_tag("isLabel", False)
-        obj.set_python_tag("isButton", True)
-
-        
-        self.widgets.append(obj)
-        
-        return obj
+        ui_reference1.setPythonTag("widget_type", "b")
+        ui_reference1.setPythonTag("ui_reference", ui_reference1)
+        ui_reference1.setPythonTag("frameColor1", {"r" : frameColor[0], "g" : frameColor[1], "b" : frameColor[2]})
+        ui_reference1.setPythonTag("text_fg1", {"r" : text_fg[0], "g" : text_fg[1], "b" : text_fg[2]})
+        ui_reference1.setPythonTag("isCanvas", False)
+        ui_reference1.setPythonTag("isLabel", False)
+        ui_reference1.setPythonTag("isButton", True)
+        self.widgets.append(ui_reference1)
+        return ui_reference1
         # Bind events for dragging (for both elements)
         #self.draggable_button.bind(DGG.B1PRESS, self.start_drag, extraArgs=[self.draggable_button, self.label1])
         #self.label1.bind(DGG.B1PRESS, self.start_drag, extraArgs=[self.draggable_button, self.label1])
         #self.draggable_button.bind(DGG.B1RELEASE, self.stop_drag)
         #self.label1.bind(DGG.B1RELEASE, self.stop_drag)
 
-    def Frame(self, path):
-        image_frame = DirectFrame(
-            frameSize=(-0.5, 0.5, -0.5, 0.5),
-            frameColor=(0, 0, 0, 0),   # Transparent frame
+    def Frame(self, path, parent,frameSize=(-0.5, 0.5, -0.5, 0.5), scale=(0.1,0.1,0.1), pos=(0.0,0.0,0.5), frameColor=(0, 0, 0, 0)):
+        ui_reference1 = DirectFrame(
+            frameSize=frameSize,
+            frameColor=(1, 1, 1, 1),   # Transparent frame
             image=path,  # Path to the image
-            parent=self.world.canvas,
-            image_scale=(1, 1, 1),     # Scale the image
-            pos=(0, 0, 0)
+            parent=parent,
+            image_scale=scale,     # Scale the image
+            pos=pos
         )
         
-        self.widgets.append(image_frame)
+        self.widgets.append(ui_reference1)
         
-        image_frame.set_python_tag("widget_type", "f")
+        ui_reference1.setPythonTag("widget_type", "i")
+        ui_reference1.setPythonTag("ui_reference", ui_reference1)
 
-        # Bind events for dragging
-        self.draggable_button.bind(DGG.B1PRESS, self.start_drag, extraArgs=[self.draggable_button, self.image_frame])
-        self.image_frame.bind(DGG.B1PRESS, self.start_drag, extraArgs=[self.draggable_button, self.image_frame])
-        self.draggable_button.bind(DGG.B1RELEASE, self.stop_drag)
-        self.image_frame.bind(DGG.B1RELEASE, self.stop_drag)
+        ui_reference1.setPythonTag("isCanvas", False)
+        ui_reference1.setPythonTag("isLabel", False)
+        ui_reference1.setPythonTag("isButton", False)
+        ui_reference1.setPythonTag("isFrame", True)
+        self.widgets.append(ui_reference1)
+        return ui_reference1
 
     def get_all_2d_nodes(self):
         """
