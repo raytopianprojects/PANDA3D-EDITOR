@@ -1,12 +1,35 @@
-# entity.py
-
 import os
 import toml
 from panda3d.core import Vec3
 from script_loader import load_script
+from twisted.internet.protocol import DatagramProtocol
+from twisted.internet import reactor
+
+
+from panda3d.core import PointLight, Spotlight, DirectionalLight, Vec4, NodePath
+
+class LightEntity:
+    def __init__(self, light_type="point", color=(1, 1, 1, 1), position=(0, 0, 10)):
+        self.node = NodePath("Light")
+        
+        if light_type == "directional":
+            self.light = DirectionalLight("directionalLight")
+            self.node.setPos(position)
+        elif light_type == "spot":
+            self.light = Spotlight("spotlight")
+            self.node.setPos(position)
+        else:  # Default to Point Light
+            self.light = PointLight("pointLight")
+            self.node.setPos(position)
+        
+        self.light.setColor(Vec4(*color))
+        self.node.setLight(self.node.attachNewNode(self.light))
+
+
 
 class Entity:
-    def __init__(self, data):
+    def __init__(self, data, input_manager, network_manager=None):
+        self.input_manager = input_manager
         self.name = data.get("name", "Unnamed")
         self.entity_model = data.get("entity_model")
         self.entity_id = data.get("id")
@@ -14,9 +37,9 @@ class Entity:
         self.transform = data.get("transform", {})
         self.node = None
         self.behavior_instances = []  # Store multiple behavior instances
+        self.network_manager = network_manager
 
     def load(self, render):
-        # Load model
         if not self.entity_model:
             print(f"No model specified for entity '{self.name}'")
             return
@@ -25,44 +48,41 @@ class Entity:
         self.node.setName(self.name)
         self.node.set_python_tag("id", self.entity_id)
 
-        # Apply transformations
-        pos_data = self.transform.get("position", {})
-        rot_data = self.transform.get("rotation", {})
-        scale_data = self.transform.get("scale", {})
-
-        pos = Vec3(pos_data.get("x", 0.0), pos_data.get("y", 0.0), pos_data.get("z", 0.0))
-        hpr = Vec3(rot_data.get("h", 0.0), rot_data.get("p", 0.0), rot_data.get("r", 0.0))
-        scl = Vec3(scale_data.get("x", 1.0), scale_data.get("y", 1.0), scale_data.get("z", 1.0))
+        pos = Vec3(*self.transform.get("position", {"x": 0.0, "y": 0.0, "z": 0.0}).values())
+        hpr = Vec3(*self.transform.get("rotation", {"h": 0.0, "p": 0.0, "r": 0.0}).values())
+        scl = Vec3(*self.transform.get("scale", {"x": 1.0, "y": 1.0, "z": 1.0}).values())
 
         self.node.setPos(pos)
         self.node.setHpr(hpr)
         self.node.setScale(scl)
         self.node.reparentTo(render)
 
-        # Load behavior scripts if available
+        self.load_behaviors()
+
+    def load_behaviors(self):
         script_paths = self.properties.get("script_paths", {})
         script_properties = self.properties.get("script_properties", {})
         scripts = {}
+
         for script_path in script_paths.keys():
             try:
                 module = load_script(script_path)
                 class_name = os.path.splitext(os.path.basename(script_path))[0]
                 if hasattr(module, class_name):
                     behavior_class = getattr(module, class_name)
-                    try:
-                        # Instantiate behavior with node reference
-                        instance = behavior_class(self.node)
-                    except TypeError:
-                        # If constructor doesn't accept arguments, instantiate without
-                        instance = behavior_class()
-                        if hasattr(instance, 'node'):
-                            instance.node = self.node
-
-                    # Apply script properties (public variables)
-                    props = script_properties.get(script_path, {})
-                    for key, value in props.items():
+                    instance = behavior_class(self.node, self.network_manager, self.input_manager) if self.network_manager else behavior_class(self.node, self.input_manager)
+                    instance.node = self.node
+                    
+                    # Auto-register public variables with defined sync categories
+                    for attr in dir(instance):
+                        if not attr.startswith("_") and not callable(getattr(instance, attr)):
+                            sync_category = getattr(instance, f"_{attr}_sync", "private")
+                            if self.network_manager and sync_category == "shared":
+                                self.network_manager.register_behavior(instance)
+                    
+                    for key, value in script_properties.get(script_path, {}).items():
                         setattr(instance, key, value)
-
+                    
                     self.behavior_instances.append(instance)
                     scripts[script_path] = instance
                 else:
@@ -72,20 +92,20 @@ class Entity:
 
         self.node.set_python_tag("scripts", scripts)
 
-def load_entity_from_toml(file_path, render):
-    """Load a single entity from a TOML file."""
+
+def load_entity_from_toml(file_path, render, network_manager=None, input_manager=None):
     data = toml.load(file_path)
-    entity = Entity(data)
+    entity = Entity(data, network_manager, input_manager)
     entity.load(render)
     return entity
 
-def load_all_entities_from_folder(folder_path, render):
-    """Load all entities defined in TOML files within a folder."""
+
+def load_all_entities_from_folder(folder_path, render, network_manager=None, input_manager=None):
     entities = []
     for filename in os.listdir(folder_path):
         if filename.endswith(".toml"):
             file_path = os.path.join(folder_path, filename)
-            entity = load_entity_from_toml(file_path, render)
+            entity = load_entity_from_toml(file_path, render, network_manager, input_manager)
             if entity.node:
                 entities.append(entity)
     return entities

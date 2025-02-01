@@ -427,7 +427,8 @@ def new_project():
 
 
 def save_file():
-    world.messenger.send("save")
+    #world.messenger.send("save")
+    entity_editor.Save.save_scene_to_toml(world.render)
     print("Save file triggered")
 
 
@@ -487,11 +488,17 @@ def close(): #TODO when saving is introduced make a window pop up with save opti
 network_manager = input_manager.NetworkManager()
 input_manager_c = input_manager.InputManager(network_manager)
 input_settings = None
+net_settings = None
 def show_input_manager():
     global input_settings
     input_settings = input_manager.InputSettingsWindow(input_manager_c)
     input_settings.show()
 
+def show_net_manager():
+    global net_settings
+    net_settings = input_manager.NetworkSettingsWindow()
+    net_settings.show()
+    
 def play_mode():
     import Preview_build
     app = Preview_build.GamePreviewApp()
@@ -548,6 +555,10 @@ if __name__ == "__main__":
     actionI = QAction("input manager", appw)
     actionI.triggered.connect(show_input_manager)
     edit_tool_type_menu.addAction(actionI)
+    
+    actionN = QAction("network manager", appw)
+    actionN.triggered.connect(show_net_manager)
+    edit_tool_type_menu.addAction(actionN)
     
     action2 = QAction("Load Project", appw)
     action2.triggered.connect(lambda: load_project(world))

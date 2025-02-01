@@ -1,0 +1,17 @@
+network_mode = "local"
+
+[key_bindings]
+forward = "w"
+left = "a"
+back = "s"
+right = "d"
+jump = "space"
+trade_request = "t"
+
+[input_categories]
+forward = "udp"
+left = "udp"
+back = "udp"
+right = "udp"
+jump = "udp"
+trade_request = "tcp"
