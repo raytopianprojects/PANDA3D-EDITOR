@@ -37,9 +37,12 @@ class Panda3DWorld(ShowBase):
 
     def __init__(self, width=800, height=600, is_fullscreen=False, size=1.0, clear_color=LVecBase4f(0.1, 0.1, 0.1, 1),
                  name="qpanda3D"):
+        
+        
 
         sort = -100
         self.parent = None
+
         # self.width = width
         # self.height = height
 
@@ -79,15 +82,19 @@ class Panda3DWorld(ShowBase):
         self.camNode = self.cam.node()
         self.camLens = self.camNode.get_lens()
 
+        # Create a display region for the 2D camera
+        dr2d = self.buff.make_display_region()
+        dr2d.setDimensions(0, 1, 0, 1)         # Cover entire buffer
+        dr2d.setSort(1)                      # Higher sort value to overlay on top of 3D
+        dr2d.setCamera(self.cam2d)
         if clear_color is None:
             self.buff.set_clear_active(GraphicsOutput.RTPColor, False)
         else:
             self.buff.set_clear_color(clear_color)
             self.buff.set_clear_active(GraphicsOutput.RTPColor, True)
 
-        self.disableMouse()
-        
-        
+        dr = self.win.makeDisplayRegion()
+        dr.sort = 2000
 
     def set_parent(self, parent: QWidget):
         self.parent = parent
