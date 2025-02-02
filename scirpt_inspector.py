@@ -488,7 +488,7 @@ class ScriptInspector(QWidget):
     
                     try:
                         # Instantiate behavior with node reference
-                        instance = behavior_class(self.node)
+                        instance = behavior_class(node, network_manager=self.world.network_manager)
                     except TypeError:
                         # If constructor doesn't accept arguments, instantiate without
                         instance = behavior_class()
@@ -533,206 +533,229 @@ class ScriptInspector(QWidget):
                 child.widget().deleteLater()
 
     def create_script_box(self, path, script_instance, nodepath, isLoadScript=False):
-
         """
-        Create a QGroupBox for the script with its properties, including drag-and-drop support for object references.
+        Create a QGroupBox for the script with its properties, including drag-and-drop support
+        for object references. Special handling is provided for vector3 properties, which are
+        displayed as three horizontally arranged input fields.
         """
+        # Create container and main layout.
         script_box = QGroupBox()
-        #script_box.setStyleSheet("QGroupBox { background-color: gray; border: 1px solid black; border-radius: 20px; }")
-
         script_layout = QVBoxLayout()
+        script_box.setLayout(script_layout)
 
-        # Horizontal layout for script label and image
+        # Title layout: image + script name.
         title_layout = QHBoxLayout()
-
-        # Add small 10x10 image near the script label
         image_label = QLabel()
         image_label.setMaximumWidth(20)
         image_label.setMaximumHeight(20)
-        pixmap = QPixmap("python_img.png")  # Replace with the path to your image file
+        pixmap = QPixmap("python_img.png")  # Replace with your image path.
         if not pixmap.isNull():
-            pixmap = pixmap.scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            image_label.setPixmap(pixmap)
+            image_label.setPixmap(pixmap.scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         else:
-            image_label.setText("No Image")  # Fallback if image can't be loaded
-
-        script_layout.addLayout(title_layout)
+            image_label.setText("No Image")
         title_layout.addWidget(image_label)
 
-        # Label for script name
         script_name = QLabel(f"Script: {os.path.splitext(os.path.basename(path))[0]}")
         script_name.setMaximumHeight(30)
         title_layout.addWidget(script_name)
+        script_layout.addLayout(title_layout)
 
-        # Add properties as editable fields
+        # Layout configuration variables.
+        max_height = 30
+        spacing = 30
+        script_layout.setSpacing(spacing)
+
+        # -------------------------------------------------------------------------
+        # Helper Functions for Widget Creation
+        # -------------------------------------------------------------------------
+
+        def create_bool_widget(attr, value):
+            """Return a QCheckBox for a Boolean property."""
+            check = QCheckBox()
+            check.setChecked(value)
+            check.stateChanged.connect(lambda state, attr=attr: self.update(attr, state, nodepath, path))
+            return check
+
+        def create_input_widget(attr, value):
+            """Return a QLineEdit for a regular input property."""
+            input_field = QLineEdit(str(value))
+            input_field.setObjectName(attr)
+            input_field.setMaximumHeight(max_height)
+            input_field.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
+            return input_field
+
+        def create_nodepath_widget(attr, node_obj):
+            """
+            Return a Label widget for a NodePath property.
+            Uses the node object's name.
+            """
+            widget = Label(f"{attr}:", node_obj.getName())
+            widget.setMaximumHeight(max_height)
+            widget.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
+            return widget
+
+        def create_nodepath_widget_from_extra(attr, extra_value):
+            """
+            Given an extra value (presumably a string or object with a get_name method),
+            try to find a node in the scene and return a Label widget.
+            """
+            node = self.world.render.find(f"**/{extra_value}")
+            if not node.is_empty():
+                print(f"Found NodePath: {node.get_name()}")
+                widget = Label(f"{attr}:", node.get_name())
+                widget.setMaximumHeight(max_height)
+                widget.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
+                return widget
+            else:
+                print(f"NodePath '{extra_value}' not found. Searching for tags instead.")
+                for potential_node in self.world.render.find_all_matches("**"):
+                    if potential_node.has_python_tag("id") and potential_node.get_python_tag("id") == extra_value:
+                        print(f"Found NodePath by tag: {potential_node.get_name()}")
+                        widget = Label(f"{attr}:", potential_node.get_name())
+                        widget.setMaximumHeight(max_height)
+                        widget.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
+                        return widget
+                print(f"No NodePath found for '{extra_value}' by name or tag.")
+                return None
+
+        def create_texture_widget(attr, texture_value, extra_value=None):
+            """
+            Return a QWidget that contains texture information.
+            If extra_value is provided and appears to be a filename, use it;
+            otherwise, use texture_value.
+            """
+            horizontal_layout = QHBoxLayout()
+            supported_formats = ('.jpg', '.jpeg', '.png', '.bmp', '.gif')
+            # Decide which texture to use.
+            if extra_value and str(extra_value).lower().endswith(supported_formats):
+                texture_obj = extra_value
+            else:
+                texture_obj = texture_value
+
+            texture_path = Filename(texture_obj.get_name()).to_os_specific()
+            pixmap = QPixmap(texture_path)
+            texture_label = Label(f"Texture: {texture_obj.get_name()}", str(texture_obj.get_name()))
+            texture_label.setMaximumHeight(100)
+            if not pixmap.isNull():
+                texture_label.value.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio))
+            else:
+                texture_label.value.setText("Image not found")
+            texture_label.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
+            horizontal_layout.addWidget(texture_label)
+
+            container_widget = QWidget()
+            container_widget.setMaximumHeight(110)
+            container_widget.setLayout(horizontal_layout)
+            return container_widget
+
+        def create_vec3_widget(attr, value):
+            """
+            Return a QWidget containing a label and three QLineEdit inputs arranged horizontally.
+            The inputs represent the x, y, and z components of the vector.
+            """
+            container = QWidget()
+            layout = QHBoxLayout(container)
+            layout.setSpacing(5)
+
+            # Add a label for the property.
+            label = QLabel(f"{attr}:")
+            label.setMaximumHeight(max_height)
+            layout.addWidget(label)
+
+            # Extract components from the value.
+            try:
+                if hasattr(value, 'x') and hasattr(value, 'y') and hasattr(value, 'z'):
+                    x, y, z = value.x, value.y, value.z
+                elif isinstance(value, (list, tuple)) and len(value) == 3:
+                    x, y, z = value
+                else:
+                    x, y, z = 0, 0, 0
+            except Exception:
+                x, y, z = 0, 0, 0
+
+            # Create three input fields for x, y, and z.
+            x_field = QLineEdit(str(x))
+            y_field = QLineEdit(str(y))
+            z_field = QLineEdit(str(z))
+            for field, comp in zip((x_field, y_field, z_field), ('x', 'y', 'z')):
+                field.setMaximumHeight(max_height)
+                field.setFixedWidth(50)
+                field.setObjectName(f"{attr}_{comp}")
+                field.textChanged.connect(lambda text, attr=attr, comp=comp: self.update(attr, comp, text, nodepath, path))
+                layout.addWidget(field)
+
+            container.setLayout(layout)
+            return container
+
+        # -------------------------------------------------------------------------
+        # Process the script_instance Attributes
+        # -------------------------------------------------------------------------
         attributes = vars(script_instance)
-        item_height = 30  # Desired height for input fields
-        max_height = 30  # Maximum height for input fields
-        spacing = 30  # Space between items
         isBuiltIn = False
-        if isLoadScript and not path == "":
+
+        if isLoadScript and path != "":
             for attr, value in attributes.items():
-                
+                # Mark built-in scripts if needed.
                 if attr == "__builtin__" and value:
                     isBuiltIn = True
-                if isBuiltIn:
-                    if isinstance(value, bool):
-                        check = QCheckBox(value)
-                        check.stateChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
-                        #-----------------------------WIP-----------------------------#
-                for v in self.prop.values():
-                    for value1 in v.values():
-                        if isinstance(value, bool):  # Handle Bool
-                            check = QCheckBox(value)
-                            check.stateChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
-                        if isinstance(value, NodePath):  # Handle NodePath (object reference)
-                            node = self.world.render.find(f"**/{value1}")
-                            if not node.is_empty():
-                                print(f"Found NodePath: {node.get_name()}")
-                                label = Label(f"{attr}:", node.get_name())
-                                label.setMaximumHeight(max_height)
-                                script_layout.addWidget(label)
-                                # Connect textChanged signal to update NodePath tag
-                                label.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
-                            else:
-                                print(f"NodePath '{value1}' not found. Searching for tags instead.")
-        
-                                # Try searching by tags if name search fails
-                                for potential_node in self.world.render.find_all_matches("**"):
-                                    if potential_node.has_python_tag("id") and potential_node.get_python_tag("id") == value1:
-                                        print(f"Found NodePath by tag: {potential_node.get_name()}")
-                                        label = Label(f"{attr}:", potential_node.get_name())
-                                        label.setMaximumHeight(max_height)
-                                        script_layout.addWidget(label)
-                                        # Connect textChanged signal to update NodePath tag
-                                        label.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
-                                        break
-                                else:
-                                    print(f"No NodePath found for '{value1}' by name or tag.")
-                                
-        
-                        elif isinstance(value, Texture):  # Handle Texture type
-                            # Create a horizontal layout for texture details
-                            horizontal_layout = QHBoxLayout()
-        
-                            # Convert Panda3D's Filename to a string path and load into QPixmap
-                            # Supported image formats by Panda3D
-                            supported_formats = ('.jpg', '.jpeg', '.png', '.bmp', '.gif')
-                        
-                            # Check if the file extension is in supported formats
-                            if value1.lower().endswith(supported_formats):
-                                texture_path = Filename(value1.get_name()).to_os_specific()
-                                pixmap = QPixmap(texture_path)
-                                texture_label = Label(f"Texture: {value1.get_name()}", str(value1.get_name()))
-                            else:
-                                texture_path = Filename(value.get_name()).to_os_specific()
-                                pixmap = QPixmap(texture_path)
-                                texture_label = Label(f"Texture: {value.get_name()}", str(value.get_name()))
-                                
-                            texture_label.setMaximumHeight(100)
-                            if not pixmap.isNull():
-                                texture_label.value.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio))
-                            else:
-                                texture_label.value.setText("Image not found")
-        
-                            # Connect textChanged signal to update NodePath tag
-                            texture_label.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
-        
-                            horizontal_layout.addWidget(texture_label)
-        
-                            # Add a label for the texture name
-                            # name_label = Label(f"Texture:", str(value.get_name()))
-                            # name_label.setMaximumHeight(max_height)
-                            # horizontal_layout.addWidget(name_label)
-        
-                            # Container for horizontal layout
-                            container_widget = QWidget()
-                            container_widget.setMaximumHeight(110)
-                            container_widget.setLayout(horizontal_layout)
-        
-                            # Add container to the script layout
-                            script_layout.addWidget(container_widget)
+
+                # Check for Vec3-like properties.
+                if ((isinstance(value, Vec3)) or (isinstance(value, (list, tuple)) and len(value) == 3)):
+                    script_layout.addWidget(create_vec3_widget(attr, value))
+                    continue
+
+                # For built-in scripts with boolean properties.
+                if isBuiltIn and isinstance(value, bool):
+                    script_layout.addWidget(create_bool_widget(attr, value))
+                    continue
+
+                # Process extra properties from self.prop, if any.
+                for prop_dict in self.prop.values():
+                    for extra_value in prop_dict.values():
+                        if isinstance(value, bool):
+                            script_layout.addWidget(create_bool_widget(attr, value))
+                        elif isinstance(value, NodePath):
+                            widget = create_nodepath_widget_from_extra(attr, extra_value)
+                            if widget:
+                                script_layout.addWidget(widget)
+                        elif hasattr(value, "get_name") and "Texture" in str(type(value)):
+                            script_layout.addWidget(create_texture_widget(attr, value, extra_value))
                         else:
-                            # Regular input fields
-                            if value1:
-                                input_field = QLineEdit(str(value1))
-                            else:
-                                input_field = QLineEdit(str(value))
-                            input_field.setObjectName(attr)
-                            input_field.setMaximumHeight(max_height)  # Set maximum height
-                            script_layout.addWidget(input_field)
-        
-                            # Connect textChanged signal to update NodePath tag
-                            input_field.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
+                            # Default: label + input field.
+                            lbl = QLabel(attr)
+                            lbl.setMaximumHeight(max_height)
+                            script_layout.addWidget(lbl)
+                            # Use extra_value if truthy, else fall back to value.
+                            field_value = extra_value if extra_value else value
+                            script_layout.addWidget(create_input_widget(attr, field_value))
         else:
             for attr, value in attributes.items():
                 print(attr, value)
                 if attr == "__builtin__" and value:
                     print("True")
-                if attr == "INPUTS":
+                # Special case for an INPUTS dictionary.
+                if attr == "INPUTS" and isinstance(value, dict):
                     for name, val in value.items():
                         if name == "Text":
-                            input_field = QLineEdit(str(val))
-                            input_field.setObjectName(name)
-                            input_field.setMaximumHeight(max_height)  # Set maximum height
-                            script_layout.addWidget(input_field)
-                if isinstance(value, NodePath):  # Handle NodePath (object reference)
-                    label = Label(f"{attr}:", value.getName())
-                    label.setMaximumHeight(max_height)
-                    script_layout.addWidget(label)
-                    # Connect textChanged signal to update NodePath tag
-                    label.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
-
-                elif isinstance(value, Texture):  # Handle Texture type
-                    # Create a horizontal layout for texture details
-                    horizontal_layout = QHBoxLayout()
-
-                    # Convert Panda3D's Filename to a string path and load into QPixmap
-                    texture_path = Filename(value.get_name()).to_os_specific()
-                    pixmap = QPixmap(texture_path)
-                    texture_label = Label(f"Texture: {value.get_name()}", str(value.get_name()))
-                    texture_label.setMaximumHeight(100)
-                    if not pixmap.isNull():
-                        texture_label.value.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio))
-                    else:
-                        texture_label.value.setText("Image not found")
-
-                    # Connect textChanged signal to update NodePath tag
-                    texture_label.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
-
-                    horizontal_layout.addWidget(texture_label)
-
-                    # Add a label for the texture name
-                    # name_label = Label(f"Texture:", str(value.get_name()))
-                    # name_label.setMaximumHeight(max_height)
-                    # horizontal_layout.addWidget(name_label)
-
-                    # Container for horizontal layout
-                    container_widget = QWidget()
-                    container_widget.setMaximumHeight(110)
-                    container_widget.setLayout(horizontal_layout)
-
-                    # Add container to the script layout
-                    script_layout.addWidget(container_widget)
+                            script_layout.addWidget(create_input_widget(name, val))
+                elif ((isinstance(value, Vec3)) or (isinstance(value, (list, tuple)) and len(value) == 3)):
+                    script_layout.addWidget(create_vec3_widget(attr, value))
+                elif ((isinstance(value, LPoint3f)) or (isinstance(value, (list, tuple)) and len(value) == 3)):
+                    script_layout.addWidget(create_vec3_widget(attr, value))
+                elif ((isinstance(value, LVecBase4f)) or (isinstance(value, (list, tuple)) and len(value) == 3)):
+                    script_layout.addWidget(create_vec3_widget(attr, value))
+                elif isinstance(value, NodePath):
+                    script_layout.addWidget(create_nodepath_widget(attr, value))
+                elif hasattr(value, "get_name") and "Texture" in str(type(value)):
+                    script_layout.addWidget(create_texture_widget(attr, value))
                 else:
-                    # Regular input fields
-                    input_field = QLineEdit(str(value))
-                    input_field.setObjectName(attr)
-                    input_field.setMaximumHeight(max_height)  # Set maximum height
-                    script_layout.addWidget(input_field)
-
-                    # Connect textChanged signal to update NodePath tag
-                    input_field.textChanged.connect(lambda text, attr=attr: self.update(attr, text, nodepath, path))
-
-        # Set layout properties for spacing
-        script_layout.setSpacing(spacing)
-
-        # Calculate the height based on the number of items
-        num_items = len(attributes)
-        total_height = (num_items * item_height) + ((num_items - 1) * spacing)
-        script_box.setLayout(script_layout)
+                    lbl = QLabel(attr)
+                    lbl.setMaximumHeight(max_height)
+                    script_layout.addWidget(lbl)
+                    script_layout.addWidget(create_input_widget(attr, value))
 
         return script_box
+
 
     def update(self, attr, value, node1, script_name):
         """

@@ -35,8 +35,10 @@ class PandaTest(Panda3DWorld):
         Panda3DWorld.__init__(self, width=width, height=height)
         
         self.setupRender2d()
-        
-        
+        global network_manager
+        global input_manager_c
+        self.network_manager = network_manager
+        self.input_manager = input_manager_c
         
 
         
@@ -121,6 +123,12 @@ class PandaTest(Panda3DWorld):
 
     def roll(self):
         self.roll_seq.start()
+        
+    def refresh(self):
+        self.hierarchy_tree.clear()
+        self.populate_hierarchy(self.hierarchy_tree, render)
+        self.hierarchy_tree1.clear()
+        self.populate_hierarchy(self.hierarchy_tree1, self.render2d)
 
     def add_model(self, model):
 
@@ -352,6 +360,148 @@ class Node:
         if path not in self.paths:
             self.paths.append(path)
 
+project_name = None
+
+main_map = None
+
+
+class StartupWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("Select a Project")
+        self.setGeometry(200, 200, 400, 300)
+
+        layout = QVBoxLayout()
+
+        self.label = QLabel("Select or Create a Project:")
+        layout.addWidget(self.label)
+
+        # List existing projects
+        self.project_list = QListWidget()
+        self.fill_project_list(".\saves")
+        layout.addWidget(self.project_list)
+
+        # Select project button
+        self.select_button = QPushButton("Open Project")
+        self.select_button.clicked.connect(self.load_projects)
+        layout.addWidget(self.select_button)
+
+        # Create new project section
+        self.new_project_input = QLineEdit()
+        self.new_project_input.setPlaceholderText("Enter new project name...")
+        layout.addWidget(self.new_project_input)
+
+        self.create_button = QPushButton("Create New Project")
+        self.create_button.clicked.connect(self.create_project)
+        layout.addWidget(self.create_button)
+
+        self.setLayout(layout)
+        
+    def fill_project_list(self, folder_path):
+        """
+        Fill the QListWidget (self.project_list) with folder names found in folder_path.
+
+        Args:
+            folder_path (str): The path in which to search for project directories.
+        """
+        # Clear any existing items in the list widget
+        self.project_list.clear()
+
+        # Ensure the given folder_path exists and is a directory
+        if not os.path.isdir(folder_path):
+            print(f"Provided path {folder_path} is not a valid directory.")
+            return
+
+        # List all entries in folder_path and filter to include only directories
+        try:
+            entries = os.listdir(folder_path)
+        except Exception as e:
+            print(f"Error reading directory {folder_path}: {e}")
+            return
+
+        # Loop over the entries and add directories to the list widget
+        for entry in entries:
+            full_path = os.path.join(folder_path, entry)
+            if os.path.isdir(full_path):
+                # Create a new list widget item with the directory name
+                item = QListWidgetItem(os.path.basename(entry))
+                # Optionally, you could store additional data (e.g., full path) with the item:
+                item.setData(0, full_path)  # 0 represents the role (i.e., Qt.UserRole can be used as well)
+                self.project_list.addItem(item)
+
+    def load_projects(self):
+        """Opens the selected project and loads it using entity_editor."""
+        
+        global world
+        
+        self.project_dir = ""
+        
+        selected_item = self.project_list.currentItem()
+        if selected_item:
+            project_name = selected_item.text()  # Store project name globally
+
+            project_path = os.path.join(self.project_dir, project_name)
+            print(f"Opening project: {project_path}")
+
+            # Hide startup window and show main editor
+            self.close()
+            appw.show()
+
+            # Load the project using entity_editor
+            
+            
+            
+            
+            entity_loader = entity_editor.MapLoader.extract_map(entity_editor.MapLoader, project_path, "./toml_loader/")
+            entity_loader = entity_editor.MapLoader.load_map(entity_editor.MapLoader, project_path)
+            print(f"✅ Project {project_name} loaded successfully!")
+        else:
+            QMessageBox.warning(self, "No Project Selected", "Please select a project to open.")
+
+    def create_project(self):
+        """Creates a new project folder and initializes it with a basic scene."""
+        global project_name
+        global world
+        project_name = self.new_project_input.text().strip()
+
+        if not project_name:
+            QMessageBox.warning(self, "Invalid Name", "Please enter a valid project name.")
+            return
+        
+        self.project_dir = ".\saves"
+
+        project_path = os.path.join(self.project_dir, project_name)
+        if os.path.exists(project_path):
+            QMessageBox.warning(self, "Project Exists", "A project with this name already exists.")
+            return
+
+        os.makedirs(project_path)
+        print(f"📂 Created new project: {project_path}")
+        
+
+        # Save an empty scene using entity_editor
+        entity_saver = entity_editor.Save.save_scene_to_toml(entity_editor.Save, world.render, "/saves/" + project_name)
+        entity_saver = entity_editor.Save.save_scene_to_map(entity_editor.Save, "/saves/" + project_name,  "/saves/" + project_name + "/lights/", project_name + ".map")
+        main_map = {"main_map" : "/saves/" + project_name + ".map"}
+        toml_str = toml.dumps(main_map)
+
+        with open(f".\saves\{project_name}\preferences.toml", "w") as pref:
+            pref.write(toml_str)
+
+        # Refresh project list and confirm
+        self.load_projects()
+        QMessageBox.information(self, "Project Created", f"Project '{project_name}' created and initialized!")
+
+    def launch_main_app(self, project_path):
+        """Launches the main application with the selected project."""
+        print(f"Launching main application with project: {project_path}")
+        global appw
+        self.close()
+        appw.show()
+        # Replace with your main application launch (e.g., `main.py`)
+        #os.system(f"python main.py {project_path}")
+
 class Save_ui(QInputDialog):
     def __init__(self):
         super().__init__()
@@ -375,11 +525,47 @@ class Save_ui(QInputDialog):
         self.setLayout(layout)
     
     def process_input(self):
+        global project_name
         # Get the input text and display it in the label
         user_input = self.input_field.text()
         ent_editor = entity_editor.Save()
-        ent_editor.save_scene_ui_to_toml(world.render2d, "./saves/ui/", user_input)
+        ent_editor.save_scene_ui_to_toml(world.render2d, project_name + "/saves/ui/", user_input)
         
+class Save_map(QInputDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Second Window")
+        self.setGeometry(150, 150, 300, 200)
+        
+        global project_name
+        
+        if project_name != None:
+        
+        
+            # Layout for the second window
+            layout = QVBoxLayout()
+
+            # Input field
+            self.input_field = QLineEdit(self)
+            self.input_field.setText("untitled.map")
+            self.input_field.setPlaceholderText("untitled.map")
+            layout.addWidget(self.input_field)
+
+            # Button to process the input
+            self.submit_button = QPushButton("Save", self)
+            self.submit_button.clicked.connect(self.process_input)
+            layout.addWidget(self.submit_button)
+
+            self.setLayout(layout)
+            
+        else:
+            self.save_p = save_dialogue().prompt_save_project()
+    
+    def process_input(self):
+        # Get the input text and display it in the label
+        user_input = self.input_field.text()
+        ent_editor = entity_editor.Save()
+        save_map(user_input)
         
 
 class Load_ui(QWidget):
@@ -405,7 +591,7 @@ class Load_ui(QWidget):
 
         
         # Button to process the input
-        self.submit_button = QPushButton("Save", self)
+        self.submit_button = QPushButton("Load", self)
         self.submit_button.clicked.connect(self.process_input)
         layout.addWidget(self.submit_button)
         
@@ -445,6 +631,12 @@ def load_ui_func():
     load_ui_instance = Load_ui()
     load_ui_instance.show()
 
+save_map_instance = None
+
+def save_map_func():
+    global save_map_instance
+    save_map_instance = Save_map()
+    save_map_instance.show()
 
 import toml
 
@@ -517,12 +709,36 @@ def gen_terrain():
 
 #-------------------
 
+sw = None
+
+def startup_w():
+    global sw
+    sw = StartupWindow()
+    sw.show()
+
+
+
+
+def save_map(map_name):
+    entity_editor.Save.save_scene_to_toml('/saves/' + map_name , '.map' + map_name)
+    entity_editor.Save.save_scene_to_map('/saves/' + map_name , '.map' + map_name)
+
+
+def delete_selection():
+    global world
+    world.selected_node.removeNode()
+    world.refresh()
+    world.selected_node = None  # Clear the selection
+
+def build_project():
+    os.system("python build.py")
+
 if __name__ == "__main__":
     world = PandaTest()
     app = QApplication(sys.argv)
     appw = QMainWindow()
     appw.setGeometry(50, 50, 1024, 768)
-
+    
     # Main Widget
     main_widget = QWidget()
     main_layout = QVBoxLayout(main_widget)  # Use vertical layout for tabs
@@ -531,7 +747,12 @@ if __name__ == "__main__":
     
     # Create the toolbar
     toolbar = QToolBar("Main Toolbar")
+
     appw.addToolBar(toolbar)
+    
+    delete_srct = QShortcut(main_widget, key="Delete")
+    delete_srct.activated.connect(delete_selection)
+    
 
     # Create the menu
     edit_tool_type_menu = QMenu("File", appw)
@@ -572,6 +793,10 @@ if __name__ == "__main__":
     load_ui.triggered.connect(lambda: load_ui_func())
     edit_tool_type_menu.addAction(load_ui)
     
+    save_map_w = QAction("save map", appw)
+    save_map_w.triggered.connect(lambda: save_map_func())
+    edit_tool_type_menu.addAction(save_map_w)
+    
     action3 = QAction("Exit", appw)
     action3.triggered.connect(exit)
     edit_tool_type_menu.addAction(action3)
@@ -597,6 +822,8 @@ if __name__ == "__main__":
     tool_button1.setPopupMode(QToolButton.InstantPopup)
     toolbar.addWidget(tool_button1)
 
+    build_btn = QPushButton("build")
+    build_btn.clicked.connect(lambda: build_project())
     # Tabs
     tab_widget = QTabWidget()
     main_layout.addWidget(tab_widget)
@@ -759,5 +986,8 @@ if __name__ == "__main__":
     #apply_stylesheet(appw, theme="light_blue.xml")
 
     # Show the application window
-    appw.show()
+    startup_w()
+    
+    appw.hide()
+
     sys.exit(app.exec_())

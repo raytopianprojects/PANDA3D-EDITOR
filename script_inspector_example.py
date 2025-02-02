@@ -3,11 +3,10 @@ from global_registry import GlobalRegistry
 from monobehavior import MonoBehavior
 
 class script_inspector_example(MonoBehavior):
-    def __init__(self, node, input_manager, network_manager=None):
+    def __init__(self, node, network_manager=None, input_manager=None):
         super().__init__(node, network_manager, input_manager)
         self.node = node
-        self.network_manager = network_manager  # ✅ Ensure correct networking instance
-        self.input_manager = input_manager
+        
         self._private_speed = 5.0  # Private variable
         self.public_health = 100    # Public variable
         self._current_pos = self.node.getPos()
